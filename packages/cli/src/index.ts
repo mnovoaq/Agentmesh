@@ -5,6 +5,7 @@ import { registerNotes } from './commands/notes.js'
 import { registerProject } from './commands/project.js'
 import { registerPrune } from './commands/prune.js'
 import { registerSpawn } from './commands/spawn.js'
+import { registerStatus } from './commands/status.js'
 import { registerStop } from './commands/stop.js'
 import { registerTasks } from './commands/tasks.js'
 
@@ -18,6 +19,7 @@ program
 registerInit(program)
 registerProject(program)
 registerSpawn(program)
+registerStatus(program)
 registerTasks(program)
 registerNotes(program)
 registerStop(program)
