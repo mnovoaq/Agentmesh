@@ -17,3 +17,10 @@ const transport = new StdioServerTransport()
 
 await server.connect(transport)
 logger.info({ agent_id: agentId, db_path: dbPath }, 'agentmesh-mcp started')
+
+// Prune expired locks every 5 minutes
+const LOCK_PRUNE_INTERVAL_MS = 5 * 60 * 1000
+setInterval(async () => {
+  const pruned = await db.pruneExpiredLocks()
+  if (pruned > 0) logger.info({ pruned }, 'expired locks pruned')
+}, LOCK_PRUNE_INTERVAL_MS).unref()
