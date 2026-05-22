@@ -33,7 +33,11 @@
       "Bash(node packages/cli/dist/index.js status --project \"API de facturación\")",
       "Bash(node packages/cli/dist/index.js spawn orchestrator --project TestRepo --from master)",
       "Bash(node packages/cli/dist/index.js spawn qa --project TestRepo --from master)",
-      "Bash(node packages/cli/dist/index.js status --project TestRepo)"
+      "Bash(node packages/cli/dist/index.js status --project TestRepo)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
