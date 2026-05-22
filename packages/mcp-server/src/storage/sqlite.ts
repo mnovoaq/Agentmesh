@@ -387,6 +387,45 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve()
   }
 
+  // ── Agent lifecycle ─────────────────────────────────────────────────────────
+
+  stopAgent(agentId: string): Promise<void> {
+    this.db.transaction(() => {
+      this.db.prepare("UPDATE agents SET status = 'offline', last_heartbeat = ? WHERE id = ?").run(Date.now(), agentId)
+      // Release all locks held by this agent
+      this.db.prepare('DELETE FROM locks WHERE agent_id = ?').run(agentId)
+      // Unassign in_progress / claimed tasks back to backlog
+      this.db.prepare(
+        "UPDATE tasks SET status = 'backlog', assigned_agent_id = NULL, updated_at = ? WHERE assigned_agent_id = ? AND status IN ('claimed','in_progress')"
+      ).run(Date.now(), agentId)
+    })()
+    this.logEventSync({ agent_id: agentId, event_type: 'agent.stopped', payload: { agent_id: agentId } })
+    return Promise.resolve()
+  }
+
+  releaseLocksForAgent(agentId: string): Promise<void> {
+    this.db.prepare('DELETE FROM locks WHERE agent_id = ?').run(agentId)
+    return Promise.resolve()
+  }
+
+  // ── Maintenance ─────────────────────────────────────────────────────────────
+
+  pruneStaleData(opts?: { agentOfflineMs?: number; eventsOlderMs?: number }): Promise<{ agents: number; locks: number; events: number }> {
+    const now = Date.now()
+    const agentCutoff = now - (opts?.agentOfflineMs ?? 24 * 60 * 60 * 1000)
+    const eventCutoff = now - (opts?.eventsOlderMs ?? 30 * 24 * 60 * 60 * 1000)
+
+    const agents = this.db.prepare(
+      "DELETE FROM agents WHERE status = 'offline' AND last_heartbeat < ?"
+    ).run(agentCutoff).changes
+
+    const locks = this.db.prepare('DELETE FROM locks WHERE expires_at <= ?').run(now).changes
+
+    const events = this.db.prepare('DELETE FROM events WHERE created_at < ?').run(eventCutoff).changes
+
+    return Promise.resolve({ agents, locks, events })
+  }
+
   // ── Events ──────────────────────────────────────────────────────────────────
 
   logEvent(input: LogEventInput): Promise<void> {

@@ -84,7 +84,7 @@ export function registerTasks(program: Command): void {
     .description('Create a task (orchestrator-less manual entry)')
     .requiredOption('--project <name_or_id>', 'Project name or id')
     .requiredOption('--title <text>', 'Task title')
-    .requiredOption('--role <role>', 'Required role (backend|frontend|qa|reviewer|orchestrator|fullstack|devops)')
+    .requiredOption('--role <role>', 'Required role (orchestrator|backend|frontend|integration|qa|reviewer|release)')
     .option('--description <text>', 'Task description', '')
     .option('--criteria <text>', 'Acceptance criteria', '')
     .option('--priority <n>', 'Priority 1-5 (1=highest)', '3')

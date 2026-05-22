@@ -116,6 +116,13 @@ export interface StorageAdapter {
   listNotes(projectId: string, filter?: { unread?: boolean; agentId?: string }): Promise<Note[]>
   markNoteRead(noteId: string): Promise<void>
 
+  // Agent lifecycle
+  stopAgent(agentId: string): Promise<void>
+  releaseLocksForAgent(agentId: string): Promise<void>
+
+  // Maintenance
+  pruneStaleData(opts?: { agentOfflineMs?: number; eventsOlderMs?: number }): Promise<{ agents: number; locks: number; events: number }>
+
   // Events
   logEvent(input: LogEventInput): Promise<void>
   listEvents(projectId: string, limit?: number): Promise<Event[]>

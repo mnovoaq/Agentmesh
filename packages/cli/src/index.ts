@@ -3,6 +3,9 @@ import { Command } from 'commander'
 import { registerInit } from './commands/init.js'
 import { registerNotes } from './commands/notes.js'
 import { registerProject } from './commands/project.js'
+import { registerPrune } from './commands/prune.js'
+import { registerSpawn } from './commands/spawn.js'
+import { registerStop } from './commands/stop.js'
 import { registerTasks } from './commands/tasks.js'
 
 const program = new Command()
@@ -14,8 +17,11 @@ program
 
 registerInit(program)
 registerProject(program)
+registerSpawn(program)
 registerTasks(program)
 registerNotes(program)
+registerStop(program)
+registerPrune(program)
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(err instanceof Error ? err.message : err)

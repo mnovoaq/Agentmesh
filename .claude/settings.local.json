@@ -22,7 +22,14 @@
       "Bash(node packages/cli/dist/index.js tasks --project \"API de facturación\")",
       "Bash(node packages/cli/dist/index.js task show sgjDEzVRUtH-km6TYVQgp)",
       "Bash(node packages/cli/dist/index.js project show \"API de facturación\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pnpm -r build)",
+      "Bash(node packages/cli/dist/index.js spawn --help)",
+      "Bash(node packages/cli/dist/index.js project create \"TestRepo\" --repo \"C:/Projects/AgentMesh\" --description \"Proyecto de prueba con git real\")",
+      "Bash(node packages/cli/dist/index.js spawn backend --project TestRepo)",
+      "Bash(node packages/cli/dist/index.js spawn backend --project TestRepo --from master)",
+      "Bash(git worktree *)"
     ]
   }
 }
