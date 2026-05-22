@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(pnpm *)",
+      "PowerShell(npm install *)",
+      "PowerShell(pnpm install *)",
+      "PowerShell(npm show *)",
+      "PowerShell(pnpm build *)",
+      "PowerShell(pnpm test *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter @agentmesh/mcp-server build)",
+      "Bash(pnpm --filter @agentmesh/cli build)",
+      "Bash(pnpm --filter @agentmesh/mcp-server test)",
+      "Bash(pnpm vitest *)",
+      "Bash(node packages/cli/dist/index.js --help)",
+      "Bash(node packages/cli/dist/index.js init)",
+      "Bash(node packages/cli/dist/index.js project create \"API de facturación\" --repo \"C:/Projects/test-project\" --description \"API REST de facturación electrónica\")",
+      "Bash(node packages/cli/dist/index.js project list)",
+      "Bash(node packages/cli/dist/index.js task create --project \"API de facturación\" --title \"Implementar endpoint POST /invoices\" --role backend --description \"Crear endpoint REST para crear facturas\" --criteria \"Devuelve 201 con invoice_id, validacion de RFC\" --priority 1)",
+      "Bash(node packages/cli/dist/index.js task create --project \"API de facturación\" --title \"UI de listado de facturas\" --role frontend --description \"Componente React para listar facturas\" --criteria \"Tabla paginada con filtros\" --priority 2)",
+      "Bash(node packages/cli/dist/index.js task create --project \"API de facturación\" --title \"Test de integración facturación\" --role qa --description \"Pruebas E2E del flujo completo\" --criteria \"80% cobertura, CI passing\" --priority 2)",
+      "Bash(node packages/cli/dist/index.js tasks --project \"API de facturación\")",
+      "Bash(node packages/cli/dist/index.js task show sgjDEzVRUtH-km6TYVQgp)",
+      "Bash(node packages/cli/dist/index.js project show \"API de facturación\")",
+      "Bash(git add *)"
+    ]
+  }
+}

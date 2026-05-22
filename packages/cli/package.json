@@ -12,9 +12,12 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@agentmesh/shared": "workspace:*"
+    "@agentmesh/mcp-server": "workspace:*",
+    "@agentmesh/shared": "workspace:*",
+    "commander": "^12.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "*"
   }
 }

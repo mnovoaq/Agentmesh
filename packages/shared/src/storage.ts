@@ -113,6 +113,7 @@ export interface StorageAdapter {
   // Notes
   leaveNote(input: StorageLeaveNoteInput): Promise<Note>
   getNotesForAgent(agentId: string, includeRead: boolean): Promise<Note[]>
+  listNotes(projectId: string, filter?: { unread?: boolean; agentId?: string }): Promise<Note[]>
   markNoteRead(noteId: string): Promise<void>
 
   // Events

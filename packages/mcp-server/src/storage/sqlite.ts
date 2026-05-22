@@ -369,6 +369,19 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve(rows.map(mapNote))
   }
 
+  listNotes(projectId: string, filter?: { unread?: boolean; agentId?: string }): Promise<Note[]> {
+    const conditions: string[] = ['project_id = ?']
+    const params: unknown[] = [projectId]
+
+    if (filter?.unread) { conditions.push('read = 0') }
+    if (filter?.agentId) { conditions.push('(to_agent_id = ? OR to_agent_id IS NULL)'); params.push(filter.agentId) }
+
+    const rows = this.db.prepare<unknown[], NoteRow>(
+      `SELECT * FROM notes WHERE ${conditions.join(' AND ')} ORDER BY created_at ASC`
+    ).all(...params)
+    return Promise.resolve(rows.map(mapNote))
+  }
+
   markNoteRead(noteId: string): Promise<void> {
     this.db.prepare('UPDATE notes SET read = 1 WHERE id = ?').run(noteId)
     return Promise.resolve()

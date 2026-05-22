@@ -2,7 +2,11 @@
   "name": "@agentmesh/mcp-server",
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/lib.js",
+  "exports": {
+    ".": "./dist/lib.js",
+    "./server": "./dist/index.js"
+  },
   "bin": {
     "agentmesh-mcp": "./dist/index.js"
   },
@@ -12,14 +16,17 @@
   },
   "dependencies": {
     "@agentmesh/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.31.0",
     "micromatch": "^4.0.7",
-    "nanoid": "^5.0.7"
+    "nanoid": "^5.0.7",
+    "pino": "^9.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
     "@types/micromatch": "^4.0.9",
+    "@types/node": "^22.0.0",
     "drizzle-kit": "^0.22.0",
     "typescript": "*",
     "vitest": "*"
