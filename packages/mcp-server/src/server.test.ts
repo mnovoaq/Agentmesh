@@ -41,12 +41,12 @@ function parseResult(result: unknown): unknown {
 // ── tool listing ──────────────────────────────────────────────────────────────
 
 describe('server setup', () => {
-  it('lists all 9 worker tools', async () => {
+  it('lists all 13 tools (9 worker + 4 orchestrator)', async () => {
     const p = await mkProject()
     const a = await mkAgent(p.id)
     const { client } = await makeClient(a.id)
     const { tools } = await client.listTools()
-    expect(tools).toHaveLength(9)
+    expect(tools).toHaveLength(13)
     const names = tools.map((t) => t.name)
     expect(names).toContain('get_my_tasks')
     expect(names).toContain('claim_task')

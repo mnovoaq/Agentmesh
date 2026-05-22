@@ -1,11 +1,9 @@
 import type { StorageAdapter } from '@agentmesh/shared'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
-import { workerTools } from './tools/index.js'
+import { ORCHESTRATOR_ONLY, allTools } from './tools/index.js'
 import { resolveAgent } from './utils/auth.js'
 import { logger } from './utils/logger.js'
-
-const ALL_TOOLS = workerTools
 
 export function createAgentMeshServer(db: StorageAdapter, agentId: string): Server {
   const server = new Server(
@@ -14,7 +12,7 @@ export function createAgentMeshServer(db: StorageAdapter, agentId: string): Serv
   )
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: ALL_TOOLS.map((t) => ({
+    tools: allTools.map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
@@ -23,7 +21,7 @@ export function createAgentMeshServer(db: StorageAdapter, agentId: string): Serv
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
-    const tool = ALL_TOOLS.find((t) => t.name === name)
+    const tool = allTools.find((t) => t.name === name)
 
     if (!tool) {
       return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown tool: ${name}`, code: 'UNKNOWN_TOOL' }) }] }
@@ -33,6 +31,12 @@ export function createAgentMeshServer(db: StorageAdapter, agentId: string): Serv
       const agent = await resolveAgent(db, agentId)
       if (!agent) {
         return { content: [{ type: 'text', text: JSON.stringify({ error: 'Agent not found', code: 'AGENT_NOT_FOUND' }) }] }
+      }
+
+      // Role gate: orchestrator-only tools reject non-orchestrators
+      if (ORCHESTRATOR_ONLY.has(name) && agent.role !== 'orchestrator') {
+        logger.warn({ tool: name, agent_id: agentId, role: agent.role }, 'forbidden: orchestrator-only tool')
+        return { content: [{ type: 'text', text: JSON.stringify({ error: 'Access denied: orchestrator role required', code: 'FORBIDDEN' }) }] }
       }
 
       // Implicit heartbeat on every call
