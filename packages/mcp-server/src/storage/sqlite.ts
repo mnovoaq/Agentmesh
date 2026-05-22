@@ -110,6 +110,10 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve(this.getAgentSync(id)!)
   }
 
+  getAgent(id: string): Promise<Agent | null> {
+    return Promise.resolve(this.getAgentSync(id))
+  }
+
   heartbeatAgent(id: string): Promise<void> {
     this.db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?').run(Date.now(), id)
     return Promise.resolve()
@@ -235,6 +239,15 @@ export class SQLiteAdapter implements StorageAdapter {
 
     this.logEventSync({ agent_id: agentId, event_type: `task.${status}`, payload: { task_id: taskId, notes: meta?.notes } })
     return Promise.resolve(this.getTaskSync(taskId)!)
+  }
+
+  listUnmetDependencies(taskId: string): Promise<string[]> {
+    const rows = this.db.prepare<[string], { id: string }>(`
+      SELECT t.id FROM task_dependencies td
+      JOIN tasks t ON t.id = td.depends_on_task_id
+      WHERE td.task_id = ? AND t.status != 'done'
+    `).all(taskId)
+    return Promise.resolve(rows.map((r) => r.id))
   }
 
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void> {

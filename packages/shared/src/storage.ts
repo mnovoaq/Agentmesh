@@ -82,6 +82,7 @@ export interface StorageAdapter {
 
   // Agents
   registerAgent(input: RegisterAgentInput): Promise<Agent>
+  getAgent(id: string): Promise<Agent | null>
   heartbeatAgent(id: string): Promise<void>
   updateAgentStatus(id: string, status: AgentStatus): Promise<void>
   listAgents(projectId: string): Promise<Agent[]>
@@ -98,6 +99,7 @@ export interface StorageAdapter {
     meta?: { notes?: string; pr_url?: string }
   ): Promise<Task>
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void>
+  listUnmetDependencies(taskId: string): Promise<string[]>
   reassignTask(taskId: string, toAgentId: string): Promise<Task>
   cancelTask(taskId: string, reason: string): Promise<Task>
 
