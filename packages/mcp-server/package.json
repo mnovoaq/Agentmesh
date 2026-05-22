@@ -1,0 +1,19 @@
+{
+  "name": "@agentmesh/mcp-server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "agentmesh-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@agentmesh/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

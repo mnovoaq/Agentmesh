@@ -1,0 +1,1 @@
+// agentmesh — CLI entry point

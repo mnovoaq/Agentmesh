@@ -1,0 +1,16 @@
+{
+  "name": "agentmesh",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "dev": "pnpm --filter @agentmesh/mcp-server dev"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}
