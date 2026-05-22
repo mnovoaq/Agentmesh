@@ -11,9 +11,17 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@agentmesh/shared": "workspace:*"
+    "@agentmesh/shared": "workspace:*",
+    "better-sqlite3": "^12.10.0",
+    "drizzle-orm": "^0.31.0",
+    "micromatch": "^4.0.7",
+    "nanoid": "^5.0.7"
   },
   "devDependencies": {
-    "typescript": "*"
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/micromatch": "^4.0.9",
+    "drizzle-kit": "^0.22.0",
+    "typescript": "*",
+    "vitest": "*"
   }
 }
