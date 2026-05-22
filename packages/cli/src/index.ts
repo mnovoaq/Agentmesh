@@ -2,6 +2,7 @@
 import { Command } from 'commander'
 import { registerInit } from './commands/init.js'
 import { registerMerge } from './commands/merge.js'
+import { registerWeb } from './commands/web.js'
 import { registerNotes } from './commands/notes.js'
 import { registerProject } from './commands/project.js'
 import { registerPrune } from './commands/prune.js'
@@ -24,6 +25,7 @@ registerStatus(program)
 registerTasks(program)
 registerNotes(program)
 registerMerge(program)
+registerWeb(program)
 registerStop(program)
 registerPrune(program)
 

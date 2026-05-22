@@ -186,8 +186,8 @@ describe('lock expiry', () => {
       ttl_minutes: 0,
     })
 
-    // Prune with 0ms threshold (all offline agents and expired locks)
-    const result = await db.pruneStaleData({ agentOfflineMs: 0, eventsOlderMs: 0 })
+    // Use negative TTLs so cutoff = now + 1000ms, catching just-created records
+    const result = await db.pruneStaleData({ agentOfflineMs: -1000, eventsOlderMs: -1000 })
     expect(result.agents).toBeGreaterThanOrEqual(1)
     expect(result.locks).toBeGreaterThanOrEqual(1)
     expect(result.events).toBeGreaterThanOrEqual(1)

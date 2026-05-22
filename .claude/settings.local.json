@@ -45,7 +45,12 @@
       "Bash(node packages/cli/dist/index.js merge EO0wORewQCLGyzoUAv6QO)",
       "Bash(node packages/cli/dist/index.js merge EO0wORewQCLGyzoUAv6QO --auto --into master)",
       "Bash(git checkout *)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(node packages/web/dist/index.js --project \"API de facturación\" --port 4000)",
+      "Bash(curl -s http://localhost:4000/api/state)",
+      "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); console.log\\('project:', d.project.name, '| agents:', d.agents.length, '| tasks:', Object.entries\\(d.task_counts\\).filter\\(\\([,v]\\)=>v>0\\).map\\(\\([k,v]\\)=>k+':'+v\\).join\\(' '\\)\\)\")",
+      "Bash(kill %1)",
+      "Bash(curl -s \"http://localhost:4001/\")"
     ]
   }
 }

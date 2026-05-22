@@ -1,0 +1,23 @@
+{
+  "name": "@agentmesh/web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "agentmesh-web": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@agentmesh/mcp-server": "workspace:*",
+    "@agentmesh/shared": "workspace:*",
+    "express": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "typescript": "*"
+  }
+}
