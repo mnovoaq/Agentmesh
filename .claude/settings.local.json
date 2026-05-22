@@ -37,7 +37,15 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:api.github.com)",
       "Bash(gh repo *)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(node packages/cli/dist/index.js merge --help)",
+      "Bash(node packages/cli/dist/index.js merge sgjDEzVRUtH-km6TYVQgp)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(node -e ' *)",
+      "Bash(node packages/cli/dist/index.js merge EO0wORewQCLGyzoUAv6QO)",
+      "Bash(node packages/cli/dist/index.js merge EO0wORewQCLGyzoUAv6QO --auto --into master)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)"
     ]
   }
 }

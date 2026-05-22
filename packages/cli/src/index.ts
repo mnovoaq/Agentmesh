@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { registerInit } from './commands/init.js'
+import { registerMerge } from './commands/merge.js'
 import { registerNotes } from './commands/notes.js'
 import { registerProject } from './commands/project.js'
 import { registerPrune } from './commands/prune.js'
@@ -22,6 +23,7 @@ registerSpawn(program)
 registerStatus(program)
 registerTasks(program)
 registerNotes(program)
+registerMerge(program)
 registerStop(program)
 registerPrune(program)
 
