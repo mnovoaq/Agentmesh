@@ -8,7 +8,7 @@ Sistema de orquestación multi-agente para **Claude Code**. Permite coordinar va
 
 ```
 Usuario
-  └─► Orquestador (Claude Code + CLAUDE.md)
+  └─► Orquestador (Claude Code corriendo en el directorio del proyecto)
          ├─► Agente backend   (worktree propio, rama propia)
          ├─► Agente frontend  (worktree propio, rama propia)
          ├─► Agente QA        (worktree propio, rama propia)
@@ -17,7 +17,7 @@ Usuario
 
 - Cada agente corre en una terminal separada con `claude --dangerously-skip-permissions`
 - Se coordinan a través de tareas, notas y locks en una base de datos SQLite compartida
-- El orquestador planifica, los workers ejecutan, el Scrum Master vigila
+- El orquestador planifica y coordina; los workers ejecutan; el Scrum Master vigila el pipeline
 - Dashboard web en tiempo real para ver el estado del equipo
 
 ---
@@ -28,7 +28,7 @@ Usuario
 - **pnpm** >= 9 — `npm install -g pnpm`
 - **Claude Code** instalado globalmente — `npm install -g @anthropic-ai/claude-code`
 - **Git** >= 2.20 (soporte de worktrees)
-- Windows 10/11 (el loop de agentes usa PowerShell)
+- Windows 10/11 (el loop autónomo de agentes usa PowerShell)
 
 ---
 
@@ -60,67 +60,108 @@ agentmesh --version
 
 ## Primer uso
 
-### 1. Inicializar AgentMesh
+### 1. Ir al directorio del proyecto
+
+AgentMesh trabaja sobre un repositorio git existente. Si no tenés uno:
 
 ```bash
-agentmesh init
+mkdir mi-proyecto && cd mi-proyecto
+git init
+git commit --allow-empty -m "init"
 ```
 
-Crea `~/.agentmesh/config.json` con la ruta de la base de datos SQLite.
+### 2. Iniciar AgentMesh en el proyecto
 
-### 2. Registrar un proyecto
+Ejecutar **desde dentro del directorio del proyecto**:
 
 ```bash
-agentmesh start --name "mi-proyecto" --path "C:/Projects/mi-proyecto"
+cd C:/Projects/mi-proyecto
+agentmesh start
 ```
 
-El `--path` debe apuntar a un repositorio git existente.
+Este comando hace todo en uno:
+- Inicializa la config global de AgentMesh (`~/.agentmesh/`) si no existe
+- Registra el proyecto en la base de datos
+- Crea el agente orquestador
+- Escribe `CLAUDE.md` y `.mcp.json` en el directorio
+- Abre el dashboard web en `http://localhost:4000`
 
-### 3. Lanzar el orquestador
+> Tiene una opción de puerto: `agentmesh start --port 3000`
+
+### 3. Iniciar el orquestador
+
+En otra terminal, en el mismo directorio del proyecto:
 
 ```bash
-agentmesh spawn orchestrator --project "mi-proyecto"
+cd C:/Projects/mi-proyecto
+claude
 ```
 
-Esto crea un worktree, escribe un `CLAUDE.md` con el protocolo del orquestador y abre una terminal nueva con Claude Code corriendo en modo autónomo.
+Claude Code lee automáticamente el `CLAUDE.md` generado por `start` y se convierte en el orquestador. Desde ahí se coordina todo.
 
-El orquestador toma el control desde ahí: analiza el proyecto, propone tareas y lanza los agentes worker.
+### 4. Dashboard web (opcional, sin bloquear)
 
-### 4. Abrir el dashboard web
+Si querés abrir el dashboard en una sesión separada sin que `start` bloquee la terminal:
 
 ```bash
-agentmesh web --project "mi-proyecto" --open
+agentmesh web --project "mi-proyecto"
+# con puerto específico:
+agentmesh web --project "mi-proyecto" --port 4000
 ```
-
-Abre `http://localhost:4000` con el estado en tiempo real del equipo: agentes, tareas, actividad y locks.
 
 ---
 
 ## Comandos CLI
 
+### Proyecto
+
 | Comando | Descripción |
 |---|---|
-| `agentmesh init` | Configuración inicial de AgentMesh |
-| `agentmesh start --name X --path Y` | Registrar un nuevo proyecto |
-| `agentmesh spawn <rol> --project X` | Lanzar un agente en un worktree nuevo |
-| `agentmesh status --project X` | Ver estado de agentes y tareas |
-| `agentmesh web --project X [--port N] [--open]` | Abrir el dashboard web |
-| `agentmesh tasks --project X` | Listar tareas |
-| `agentmesh notes --project X` | Ver notas entre agentes |
-| `agentmesh merge <task_id>` | Mergear el branch de una tarea completada |
-| `agentmesh stop <agent_id>` | Detener un agente |
-| `agentmesh prune --project X` | Eliminar agentes offline y locks expirados |
-| `agentmesh project list` | Listar proyectos registrados |
+| `agentmesh start [--port N]` | Inicia AgentMesh en el directorio actual (registra proyecto + orquestador + abre web) |
+| `agentmesh project list` | Lista todos los proyectos registrados |
+| `agentmesh project create <nombre> --repo <ruta>` | Registra un proyecto manualmente |
+| `agentmesh project show <nombre_o_id>` | Muestra detalles del proyecto (agentes, conteo de tareas) |
+| `agentmesh project reset <nombre_o_id>` | Limpia todos los agentes, tareas, notas y eventos del proyecto (no toca el código) |
 
-### Roles disponibles
+### Agentes
+
+| Comando | Descripción |
+|---|---|
+| `agentmesh spawn <rol> --project <nombre>` | Lanza un agente worker en un nuevo worktree |
+| `agentmesh spawn <rol> --project <nombre> --from <rama>` | Especifica la rama base del worktree |
+| `agentmesh stop <agent_id>` | Marca el agente como offline y libera sus locks |
+| `agentmesh stop <agent_id> --remove-worktree` | Ídem + elimina el worktree del disco |
+| `agentmesh status --project <nombre>` | Dashboard en terminal: agentes, tareas, locks |
+| `agentmesh status --project <nombre> --watch` | Refresca cada 2 segundos |
+
+### Tareas y notas
+
+| Comando | Descripción |
+|---|---|
+| `agentmesh tasks --project <nombre>` | Lista tareas |
+| `agentmesh tasks --project <nombre> --status in_progress` | Filtra por estado |
+| `agentmesh tasks --project <nombre> --role backend` | Filtra por rol |
+| `agentmesh notes --project <nombre>` | Lista notas entre agentes |
+| `agentmesh notes --project <nombre> --unread` | Solo notas no leídas |
+
+### Merge y mantenimiento
+
+| Comando | Descripción |
+|---|---|
+| `agentmesh merge <task_id>` | Verifica precondiciones para mergear (status + CI) |
+| `agentmesh merge <task_id> --auto` | Ejecuta el merge directamente sin agente release |
+| `agentmesh merge <task_id> --auto --into main` | Especifica rama destino (default: main) |
+| `agentmesh prune` | Elimina agentes offline >24h, locks expirados y eventos >30d |
+| `agentmesh prune --agent-ttl 48` | Cambia el TTL de agentes offline a 48 horas |
+
+### Roles disponibles para spawn
 
 | Rol | Función |
 |---|---|
-| `orchestrator` | Planifica, crea tareas, coordina el equipo |
-| `backend` | Implementa APIs, lógica de servidor, DB |
-| `frontend` | Implementa UI, componentes, estilos |
+| `backend` | APIs, lógica de servidor, base de datos |
+| `frontend` | UI, componentes, estilos |
 | `qa` | Tests unitarios y de integración |
-| `integration` | Integración entre servicios, end-to-end |
+| `integration` | Integración entre servicios, tests end-to-end |
 | `reviewer` | Revisión de código antes del merge |
 | `release` | Versionado, changelogs, deploy |
 | `scrum-master` | Monitor autónomo del pipeline — detecta agentes bloqueados o inactivos |
@@ -130,16 +171,16 @@ Abre `http://localhost:4000` con el estado en tiempo real del equipo: agentes, t
 ## Dashboard web
 
 ```bash
-agentmesh web --project "mi-proyecto" --open
+agentmesh web --project "mi-proyecto"
 ```
 
-El dashboard muestra en tiempo real:
+Muestra en tiempo real:
 
 - **Sidebar izquierdo** — agentes activos con su tarea actual y heartbeat
 - **Centro** — tablero Kanban con todas las tareas por estado
-- **Sidebar derecho** — feed de actividad (notas entre agentes, herramientas MCP usadas, archivos editados)
+- **Sidebar derecho** — feed de actividad con filtros: todo / notas / MCP / acciones
 
-Los paneles son redimensionables con drag. El feed tiene filtros: **todo / notas / MCP / acciones**.
+Los paneles son redimensionables arrastrando los separadores.
 
 ---
 
@@ -147,7 +188,7 @@ Los paneles son redimensionables con drag. El feed tiene filtros: **todo / notas
 
 ```
 packages/
-  cli/          CLI "agentmesh" — comandos init, spawn, web, merge, etc.
+  cli/          CLI "agentmesh" — todos los comandos
   mcp-server/   Servidor MCP — herramientas que usan los agentes (tareas, locks, notas)
   shared/       Tipos TypeScript y esquemas Zod compartidos
   web/          Dashboard web (Express + SSE + Tailwind)
@@ -156,9 +197,9 @@ agents/
   _common.md        Instrucciones base para todos los workers
   orchestrator.md   Protocolo del orquestador
   scrum-master.md   Protocolo del Scrum Master
-  backend.md        Instrucciones específicas del rol backend
-  frontend.md       ídem frontend
-  qa.md             ídem QA
+  backend.md        Instrucciones del rol backend
+  frontend.md       Instrucciones del rol frontend
+  qa.md             Instrucciones del rol QA
   (etc.)
 ```
 
@@ -166,32 +207,43 @@ agents/
 
 ## Flujo típico de trabajo
 
-```
-1. agentmesh start --name "mi-app" --path "C:/Projects/mi-app"
-2. agentmesh spawn orchestrator --project "mi-app"
-   → El orquestador analiza el proyecto y propone un roadmap
-   → Aprobás el roadmap en la conversación con el orquestador
-   → El orquestador crea las tareas y lanza los agentes worker
-3. agentmesh web --project "mi-app" --open
-   → Ves el progreso en tiempo real
-4. Cuando una etapa termina:
-   agentmesh merge <task_id>   ← por cada tarea completada
-5. El orquestador avanza a la siguiente etapa
+```bash
+# 1. Ir al proyecto y lanzar AgentMesh
+cd C:/Projects/mi-app
+agentmesh start               # registra proyecto + escribe CLAUDE.md + abre dashboard
+
+# 2. En otra terminal: iniciar el orquestador
+cd C:/Projects/mi-app
+claude                        # lee CLAUDE.md y actúa como orquestador
+
+# El orquestador analiza el proyecto, propone un roadmap al usuario,
+# y al obtener aprobación crea las tareas y spawna los workers.
+
+# 3. Monitorear el progreso
+# → En el dashboard web (http://localhost:4000)
+# → O en terminal:
+agentmesh status --project mi-app --watch
+
+# 4. Cuando una etapa termina, mergear las tareas completadas
+agentmesh merge <task_id> --auto --into main
+
+# 5. Limpiar los registros de AgentMesh para comenzar una nueva sesión
+agentmesh project reset mi-app
 ```
 
 ---
 
 ## Limpiar un proyecto (reset AgentMesh)
 
-Para volver a empezar con un proyecto sin borrar el código:
+Para borrar solo los registros de AgentMesh y empezar de nuevo — **sin tocar el código del proyecto**:
 
 ```bash
-# Opción A: desde el dashboard web → botón de reset por proyecto
-# Opción B: manual — solo borra registros de AgentMesh, nunca el código
-agentmesh prune --project "mi-app" --full
+agentmesh project reset mi-app
 ```
 
-> **Importante:** "limpiar el proyecto" en AgentMesh significa borrar los agentes, tareas, notas y worktrees de `.worktrees/`. Nunca toca el directorio principal del proyecto ni su historial git.
+Esto elimina: agentes, tareas, notas, eventos y locks. El directorio del proyecto y su historial git quedan intactos.
+
+> Los worktrees en `.worktrees/` quedan en disco — eliminarlos manualmente o con `agentmesh stop <id> --remove-worktree` antes del reset.
 
 ---
 
@@ -209,14 +261,17 @@ No hace falta reinstalar el CLI global — `pnpm link` ya apunta a los archivos 
 
 ## Troubleshooting
 
-**`agentmesh: command not found`**
-→ Verificar que `pnpm link --global` se ejecutó y que el directorio de binarios globales de pnpm está en el PATH.
+**`agentmesh: command not found`**  
+→ Verificar que `pnpm --filter @agentmesh/cli link --global` se ejecutó y que el directorio de binarios globales de pnpm está en el PATH.
 
-**El agente no aparece en el dashboard**
-→ El agente necesita hacer al menos una llamada MCP para registrar su heartbeat. Esperá que arranque el primer ciclo (puede tardar ~30 segundos).
+**El agente no aparece en el dashboard**  
+→ El agente registra su heartbeat con la primera llamada MCP. Puede tardar ~30 segundos en aparecer activo.
 
-**Error "not a git repository"**
-→ El `--path` del proyecto debe ser un repositorio git con al menos un commit. Ejecutar `git init && git commit --allow-empty -m "init"` si es nuevo.
+**Error "not a git repository"**  
+→ El directorio del proyecto debe tener git. Ejecutar `git init && git commit --allow-empty -m "init"`.
 
-**Worktrees de sesiones anteriores siguen en `.worktrees/`**
-→ Eliminar manualmente la carpeta `.worktrees/` dentro del proyecto y ejecutar `agentmesh prune --project X`.
+**Worktrees de sesiones anteriores siguen en `.worktrees/`**  
+→ Eliminarlos manualmente o usar `agentmesh stop <agent_id> --remove-worktree` antes de hacer el reset.
+
+**`agentmesh merge` dice que la rama no existe**  
+→ La tarea debe tener `branch_name` asignado, o el agente que la trabajó debe tenerlo en su registro.
