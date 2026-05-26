@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { registerInit } from './commands/init.js'
+import { registerStart } from './commands/start.js'
 import { registerMerge } from './commands/merge.js'
 import { registerWeb } from './commands/web.js'
 import { registerNotes } from './commands/notes.js'
 import { registerProject } from './commands/project.js'
+import { registerDispatcher } from './commands/dispatcher.js'
 import { registerPrune } from './commands/prune.js'
 import { registerSpawn } from './commands/spawn.js'
 import { registerStatus } from './commands/status.js'
@@ -19,6 +21,7 @@ program
   .version('0.1.0')
 
 registerInit(program)
+registerStart(program)
 registerProject(program)
 registerSpawn(program)
 registerStatus(program)
@@ -27,6 +30,7 @@ registerNotes(program)
 registerMerge(program)
 registerWeb(program)
 registerStop(program)
+registerDispatcher(program)
 registerPrune(program)
 
 program.parseAsync(process.argv).catch((err) => {

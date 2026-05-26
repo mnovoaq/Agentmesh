@@ -4,6 +4,18 @@ Tomás tareas con `role_required=frontend`. UI, componentes, integración con AP
 
 ---
 
+### Dependencias del proyecto (node_modules)
+
+`node_modules` ya existe en este worktree como symlink al repo principal. **NO ejecutes `npm install` ni `npm ci` sin motivo** — las dependencias ya están disponibles.
+
+Solo instalá paquetes nuevos si la tarea lo requiere explícitamente:
+- Usá `npm install <paquete>` (no `npm install` a secas)
+- Preferí `npx <herramienta>` para herramientas de una sola vez
+
+Si `node_modules` no existe (symlink roto), reportá blocker inmediatamente — no instales todo el árbol.
+
+---
+
 ### Antes de empezar una tarea
 
 1. Revisá el design system del proyecto (DESIGN.md, tokens, componentes base) antes de crear nada nuevo. Si no existe convención, `leave_note` al orchestrator preguntando cuál usar.

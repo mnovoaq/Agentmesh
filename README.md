@@ -127,8 +127,10 @@ agentmesh web --project "mi-proyecto" --port 4000
 
 | Comando | Descripción |
 |---|---|
-| `agentmesh spawn <rol> --project <nombre>` | Lanza un agente worker en un nuevo worktree |
+| `agentmesh spawn <rol> --project <nombre>` | Registra un agente worker en un nuevo worktree |
 | `agentmesh spawn <rol> --project <nombre> --from <rama>` | Especifica la rama base del worktree |
+| `agentmesh dispatcher --project <nombre>` | Daemon liviano que activa workers solo cuando hay tareas disponibles (cero polling idle) |
+| `agentmesh dispatcher --project <nombre> --interval <segundos>` | Cambia el intervalo de polling (default: 30s) |
 | `agentmesh stop <agent_id>` | Marca el agente como offline y libera sus locks |
 | `agentmesh stop <agent_id> --remove-worktree` | Ídem + elimina el worktree del disco |
 | `agentmesh status --project <nombre>` | Dashboard en terminal: agentes, tareas, locks |
@@ -216,20 +218,59 @@ agentmesh start               # registra proyecto + escribe CLAUDE.md + abre das
 cd C:/Projects/mi-app
 claude                        # lee CLAUDE.md y actúa como orquestador
 
-# El orquestador analiza el proyecto, propone un roadmap al usuario,
-# y al obtener aprobación crea las tareas y spawna los workers.
+# El orquestador analiza el proyecto y propone un roadmap al usuario.
+# Al obtener aprobación, crea las tareas en AgentMesh.
 
-# 3. Monitorear el progreso
+# 3. El orquestador inicia el dispatcher (una vez por sesión, antes del primer spawn)
+#    El orquestador ejecuta esto en una nueva terminal:
+agentmesh dispatcher --project mi-app
+
+# 4. El orquestador registra los worktrees de cada rol
+#    (el dispatcher activa los workers automáticamente cuando hay tareas)
+agentmesh spawn backend --project mi-app
+agentmesh spawn frontend --project mi-app
+agentmesh spawn qa --project mi-app
+
+# 5. Monitorear el progreso
 # → En el dashboard web (http://localhost:4000)
 # → O en terminal:
 agentmesh status --project mi-app --watch
 
-# 4. Cuando una etapa termina, mergear las tareas completadas
+# 6. Cuando una etapa termina, mergear las tareas completadas
 agentmesh merge <task_id> --auto --into main
 
-# 5. Limpiar los registros de AgentMesh para comenzar una nueva sesión
+# 7. Limpiar los registros de AgentMesh para comenzar una nueva sesión
 agentmesh project reset mi-app
 ```
+
+---
+
+## Dispatcher — activación event-driven de workers
+
+El dispatcher es un proceso liviano (sin LLM) que reemplaza el polling continuo de cada worker:
+
+**Sin dispatcher (antes):** cada worker corre `claude -p` cada 90 segundos, pagando el contexto completo aunque no haya trabajo — idle token burn.
+
+**Con dispatcher:** los workers son procesos de una sola pasada. Arrancan, completan todas las tareas disponibles de su rol, y salen. El dispatcher los re-activa cuando aparece nuevo trabajo.
+
+```
+[Dispatcher — SQL puro, sin LLM]
+   ↓ consulta DB cada 30s
+   ↓ detecta: rol "backend" tiene 2 tareas disponibles, sin worker activo
+   → abre terminal con claude en el worktree del backend
+
+[Worker backend]
+   → get_notes + get_my_tasks
+   → reclama tarea 1, trabaja, done
+   → reclama tarea 2, trabaja, done
+   → no hay más tareas → sale
+
+[Dispatcher] → próxima consulta → frontend desbloqueado → activa frontend
+```
+
+**Ahorro estimado:** 50-70% menos tokens en sprints típicos (workers idle 60-70% del tiempo).
+
+El dispatcher lo inicia el orquestador en FASE 4, antes del primer `spawn`. Solo necesita correr una vez por sesión.
 
 ---
 
@@ -275,3 +316,9 @@ No hace falta reinstalar el CLI global — `pnpm link` ya apunta a los archivos 
 
 **`agentmesh merge` dice que la rama no existe**  
 → La tarea debe tener `branch_name` asignado, o el agente que la trabajó debe tenerlo en su registro.
+
+**El dispatcher no activa workers aunque hay tareas en backlog**  
+→ Verificar que los worktrees existen (`agentmesh status --project <nombre>`). El dispatcher solo activa agentes que ya están registrados con un `worktree_path` válido. Si no hay ninguno, correr `agentmesh spawn <rol>` primero.
+
+**Un worker se activa y sale inmediatamente sin hacer nada**  
+→ Las tareas pueden tener dependencias no resueltas. Verificar con `agentmesh tasks --project <nombre>` que las dependencias estén en `done`.

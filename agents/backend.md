@@ -4,6 +4,18 @@ Tomás tareas con `role_required=backend`. Trabajás en endpoints, lógica de do
 
 ---
 
+### Dependencias del proyecto (node_modules)
+
+`node_modules` ya existe en este worktree como symlink al repo principal. **NO ejecutes `npm install` ni `npm ci` sin motivo** — las dependencias ya están disponibles.
+
+Solo instalá paquetes nuevos si la tarea lo requiere explícitamente:
+- Usá `npm install <paquete>` (no `npm install` a secas)
+- Preferí `npx <herramienta>` para herramientas de una sola vez
+
+Si `node_modules` no existe (symlink roto), reportá blocker inmediatamente — no instales todo el árbol.
+
+---
+
 ### Antes de empezar una tarea
 
 1. Leé los tests que ya existen para el módulo que vas a tocar. Entendé qué cubre y qué no.
