@@ -11,6 +11,8 @@ const GRACE_MS = 30_000
 const HEARTBEAT_STALE_MS = 5 * 60_000
 // How long a task can sit in 'done' without being merged before notifying orchestrator
 const PENDING_MERGE_WARN_MS = 10 * 60_000
+// Tasks done longer than this are ignored — user already knows, no need to spam
+const PENDING_MERGE_MAX_AGE_MS = 24 * 60 * 60_000
 
 const ACTIVATION_PROMPT =
   'Dispatcher cycle: get_notes y get_my_tasks. ' +
@@ -72,6 +74,20 @@ export function registerDispatcher(program: Command): void {
       // task_id -> timestamp of last merge notification (avoids spamming orchestrator)
       const notifiedMergePending = new Map<string, number>()
 
+      // Pre-populate notifiedMergePending with existing done tasks so the first
+      // poll doesn't fire all notifications at once (startup spam bomb)
+      {
+        const db = openDb(dbPath)
+        try {
+          const existing = await db.listTasks({ project_id: project.id, status: 'done' })
+          const now = Date.now()
+          for (const t of existing) {
+            // Mark as "just notified" — they'll be eligible again after 30 min
+            notifiedMergePending.set(t.id, now)
+          }
+        } catch { /* best-effort */ } finally { db.close() }
+      }
+
       const poll = async () => {
         const db = openDb(dbPath)
         try {
@@ -111,7 +127,9 @@ export function registerDispatcher(program: Command): void {
           // ── Notificar tareas done pendientes de merge ────────────────────────
           for (const task of doneTasks) {
             const completedAt = task.completed_at ?? task.updated_at
-            if (now - completedAt < PENDING_MERGE_WARN_MS) continue  // demasiado reciente
+            const age = now - completedAt
+            if (age < PENDING_MERGE_WARN_MS) continue       // demasiado reciente
+            if (age > PENDING_MERGE_MAX_AGE_MS) continue    // demasiado vieja — usuario ya la conoce
 
             const lastNotified = notifiedMergePending.get(task.id) ?? 0
             if (now - lastNotified < 30 * 60_000) continue  // ya notificamos hace <30 min
