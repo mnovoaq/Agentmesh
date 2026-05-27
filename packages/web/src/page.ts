@@ -564,16 +564,15 @@ function renderAgentCard(a, isOrchestrator) {
 }
 
 // ── render: agentes ──────────────────────────────────────────────────────────
-var HIDE_IDLE_AFTER_MS = 15 * 60 * 1000;   // 15 min sin heartbeat → ocultar
 var showHiddenAgents = false;
 function toggleHiddenAgents() {
   showHiddenAgents = !showHiddenAgents;
   if (lastState) renderAgents(lastState.agents);
 }
 function isAgentHidden(a) {
-  if (a.status === 'offline') return true;
-  if (a.status === 'idle' && (Date.now() - a.last_heartbeat) > HIDE_IDLE_AFTER_MS) return true;
-  return false;
+  // idle = terminal cerrada (el dispatcher re-lanzará si hay trabajo)
+  // offline = detenido explícitamente con agentmesh stop
+  return a.status === 'idle' || a.status === 'offline';
 }
 
 function renderAgents(agents) {
