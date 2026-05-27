@@ -564,12 +564,27 @@ function renderAgentCard(a, isOrchestrator) {
 }
 
 // ── render: agentes ──────────────────────────────────────────────────────────
+var HIDE_IDLE_AFTER_MS = 15 * 60 * 1000;   // 15 min sin heartbeat → ocultar
+var showHiddenAgents = false;
+function toggleHiddenAgents() {
+  showHiddenAgents = !showHiddenAgents;
+  if (lastState) renderAgents(lastState.agents);
+}
+function isAgentHidden(a) {
+  if (a.status === 'offline') return true;
+  if (a.status === 'idle' && (Date.now() - a.last_heartbeat) > HIDE_IDLE_AFTER_MS) return true;
+  return false;
+}
+
 function renderAgents(agents) {
   var orchestrator = agents.find(function(a){ return a.role === 'orchestrator'; });
-  var workers = agents.filter(function(a){ return a.role !== 'orchestrator'; });
-  var active  = workers.filter(function(a){ return a.status === 'working' || a.status === 'in_progress'; }).length;
-  document.getElementById('agent-count').textContent = workers.length
-    ? '(' + active + '/' + workers.length + ')'
+  var allWorkers   = agents.filter(function(a){ return a.role !== 'orchestrator'; });
+  var visible      = showHiddenAgents ? allWorkers : allWorkers.filter(function(a){ return !isAgentHidden(a); });
+  var hiddenCount  = allWorkers.length - allWorkers.filter(function(a){ return !isAgentHidden(a); }).length;
+  var active       = visible.filter(function(a){ return a.status === 'working' || a.status === 'in_progress'; }).length;
+
+  document.getElementById('agent-count').textContent = visible.length
+    ? '(' + active + '/' + visible.length + ')'
     : '';
 
   var el = document.getElementById('agents');
@@ -577,15 +592,23 @@ function renderAgents(agents) {
 
   if (orchestrator) {
     html += renderAgentCard(orchestrator, true);
-    if (workers.length) html += '<div class="border-t border-gray-100 my-1.5"></div>';
+    if (visible.length) html += '<div class="border-t border-gray-100 my-1.5"></div>';
   }
 
-  if (workers.length) {
-    html += workers.map(function(a){ return renderAgentCard(a, false); }).join('');
+  if (visible.length) {
+    html += visible.map(function(a){ return renderAgentCard(a, false); }).join('');
   } else if (!orchestrator) {
     html = '<p class="text-gray-400 text-xs">Sin agentes. Usa + Lanzar.</p>';
   } else {
     html += '<p class="text-gray-400 text-xs mt-1">Sin workers. Usa + Lanzar.</p>';
+  }
+
+  if (hiddenCount > 0) {
+    html += '<button onclick="toggleHiddenAgents()" class="mt-1.5 text-xs text-gray-400 hover:text-gray-600 w-full text-left">'
+      + (showHiddenAgents
+          ? '▲ ocultar inactivos'
+          : '▼ ' + hiddenCount + ' agente' + (hiddenCount > 1 ? 's' : '') + ' inactivo' + (hiddenCount > 1 ? 's' : ''))
+      + '</button>';
   }
 
   el.innerHTML = html;
