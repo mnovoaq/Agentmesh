@@ -9,6 +9,8 @@ import { openDb, readConfig } from '../db.js'
 const GRACE_MS = 30_000
 // How old a heartbeat can be before we consider the agent gone
 const HEARTBEAT_STALE_MS = 5 * 60_000
+// How long a task can sit in 'done' without being merged before notifying orchestrator
+const PENDING_MERGE_WARN_MS = 10 * 60_000
 
 const ACTIVATION_PROMPT =
   'Dispatcher cycle: get_notes y get_my_tasks. ' +
@@ -67,41 +69,63 @@ export function registerDispatcher(program: Command): void {
 
       // role -> timestamp of last launch
       const recentlyLaunched = new Map<string, number>()
+      // task_id -> timestamp of last merge notification (avoids spamming orchestrator)
+      const notifiedMergePending = new Map<string, number>()
 
       const poll = async () => {
         const db = openDb(dbPath)
         try {
-          const [agents, backlogTasks] = await Promise.all([
+          const [agents, backlogTasks, doneTasks] = await Promise.all([
             db.listAgents(project.id),
             db.listTasks({ project_id: project.id, status: 'backlog' }),
+            db.listTasks({ project_id: project.id, status: 'done' }),
           ])
 
-          if (backlogTasks.length === 0) return
-
           const now = Date.now()
-          const rolesWithWork = new Set(backlogTasks.map((t) => t.role_required))
 
-          for (const role of rolesWithWork) {
-            // Find a registered agent for this role with a worktree
-            const agent = agents.find((a) => a.role === role && a.worktree_path)
-            if (!agent?.worktree_path) continue
+          // ── Activar workers para tareas en backlog ───────────────────────────
+          if (backlogTasks.length > 0) {
+            const rolesWithWork = new Set(backlogTasks.map((t) => t.role_required))
 
-            // Skip if worker is active (heartbeat fresh)
-            const heartbeatAge = now - agent.last_heartbeat
-            if (agent.status === 'working' && heartbeatAge < HEARTBEAT_STALE_MS) continue
+            for (const role of rolesWithWork) {
+              const agent = agents.find((a) => a.role === role && a.worktree_path)
+              if (!agent?.worktree_path) continue
 
-            // Skip if we just launched this role (grace period)
-            const lastLaunch = recentlyLaunched.get(role) ?? 0
-            if (now - lastLaunch < GRACE_MS) continue
+              const heartbeatAge = now - agent.last_heartbeat
+              if (agent.status === 'working' && heartbeatAge < HEARTBEAT_STALE_MS) continue
 
-            const taskCount = backlogTasks.filter((t) => t.role_required === role).length
-            console.log(
-              `[${new Date().toLocaleTimeString()}] Activando ${role} ` +
-              `(${agent.id.slice(0, 8)}) — ${taskCount} tarea(s) disponible(s)`
-            )
+              const lastLaunch = recentlyLaunched.get(role) ?? 0
+              if (now - lastLaunch < GRACE_MS) continue
 
-            recentlyLaunched.set(role, now)
-            launchWorker(role, agent.worktree_path)
+              const taskCount = backlogTasks.filter((t) => t.role_required === role).length
+              console.log(
+                `[${new Date().toLocaleTimeString()}] Activando ${role} ` +
+                `(${agent.id.slice(0, 8)}) — ${taskCount} tarea(s) disponible(s)`
+              )
+
+              recentlyLaunched.set(role, now)
+              launchWorker(role, agent.worktree_path)
+            }
+          }
+
+          // ── Notificar tareas done pendientes de merge ────────────────────────
+          for (const task of doneTasks) {
+            const completedAt = task.completed_at ?? task.updated_at
+            if (now - completedAt < PENDING_MERGE_WARN_MS) continue  // demasiado reciente
+
+            const lastNotified = notifiedMergePending.get(task.id) ?? 0
+            if (now - lastNotified < 30 * 60_000) continue  // ya notificamos hace <30 min
+
+            notifiedMergePending.set(task.id, now)
+            console.log(`[${new Date().toLocaleTimeString()}] Tarea pendiente de merge: "${task.title}" (${task.id.slice(0, 8)})`)
+
+            // Notificar al orquestador (best-effort)
+            db.leaveNote({
+              project_id: project.id,
+              from_agent_id: null,
+              to_role: 'orchestrator',
+              content: `🔀 Tarea pendiente de merge hace ${Math.round((now - completedAt) / 60_000)} min:\n"${task.title}"\nBranch: ${task.branch_name ?? '(sin branch)'}\nEjecutá: agentmesh merge ${task.id} --auto`,
+            }).catch(() => { /* best-effort */ })
           }
         } catch (err) {
           console.error('Poll error:', err instanceof Error ? err.message : err)

@@ -224,6 +224,12 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve(result)
   }
 
+  setTaskBranch(taskId: string, branchName: string): Promise<void> {
+    this.db.prepare('UPDATE tasks SET branch_name = ?, updated_at = ? WHERE id = ? AND branch_name IS NULL')
+      .run(branchName, Date.now(), taskId)
+    return Promise.resolve()
+  }
+
   updateTaskStatus(taskId: string, status: TaskStatus, agentId: string, meta?: { notes?: string; pr_url?: string }): Promise<Task> {
     const now = Date.now()
     const completedAt = status === 'done' ? now : null

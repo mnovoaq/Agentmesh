@@ -18,6 +18,15 @@ export const claimTaskTool: ToolDef = {
     const claimResult = await db.claimTask(input.task_id, ctx.agentId)
     if (!claimResult.success) return claimResult
 
+    // Auto-populate branch_name from agent record if not already set on task
+    if (!claimResult.task.branch_name) {
+      const agent = await db.getAgent(ctx.agentId)
+      if (agent?.branch_name) {
+        await db.setTaskBranch(input.task_id, agent.branch_name)
+        claimResult.task.branch_name = agent.branch_name
+      }
+    }
+
     if (input.paths_to_lock?.length) {
       const lockResult = await db.acquireLock({
         project_id: ctx.projectId,

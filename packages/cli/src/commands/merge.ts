@@ -141,11 +141,49 @@ export function registerMerge(program: Command): void {
           console.warn('  Advertencia: npm install falló post-merge. Corré manualmente.')
         }
 
+        // ── Post-merge cleanup ────────────────────────────────────────────────
+        // 1. Tag liviano para recuperación si algo falla
+        try {
+          execSync(`git tag "merged/${branchName}" "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+          console.log(`  Tag creado: merged/${branchName}`)
+        } catch { /* tag ya existe o branch gone — ignorar */ }
+
+        // 2. Eliminar worktree del agente asignado
+        let worktreePath: string | null = null
+        if (task.assigned_agent_id) {
+          const agent = await db.getAgent(task.assigned_agent_id)
+          worktreePath = agent?.worktree_path ?? null
+          if (worktreePath) {
+            try {
+              execSync(`git worktree remove --force "${worktreePath}"`, { cwd: repoPath, stdio: 'pipe' })
+              console.log(`  Worktree eliminado: ${worktreePath}`)
+            } catch {
+              console.warn(`  Advertencia: no se pudo eliminar el worktree ${worktreePath}. Eliminalo manualmente.`)
+            }
+          }
+          // Marcar agente como offline
+          try {
+            await db.updateAgentStatus(task.assigned_agent_id, 'offline')
+          } catch { /* best-effort */ }
+        }
+
+        // 3. Eliminar branch mergeado
+        try {
+          execSync(`git branch -d "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+          console.log(`  Branch eliminado: ${branchName}`)
+        } catch {
+          try {
+            // -D fuerza si git no detecta el merge correctamente
+            execSync(`git branch -D "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+            console.log(`  Branch eliminado (forzado): ${branchName}`)
+          } catch {
+            console.warn(`  Advertencia: no se pudo eliminar el branch ${branchName}.`)
+          }
+        }
+
         db.close()
-        console.log(`Mergeado: ${branchName} → ${opts.into}`)
         console.log()
-        console.log('Siguiente paso:')
-        console.log(`  agentmesh project reset ${task.project_id}  # limpiar agentes y locks`)
+        console.log(`Mergeado y limpiado: ${branchName} → ${opts.into}`)
         return
       }
 

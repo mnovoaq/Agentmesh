@@ -92,6 +92,7 @@ export interface StorageAdapter {
   getTask(id: string): Promise<Task | null>
   listTasks(filter: TaskFilter): Promise<Task[]>
   claimTask(taskId: string, agentId: string): Promise<ClaimResult>
+  setTaskBranch(taskId: string, branchName: string): Promise<void>
   updateTaskStatus(
     taskId: string,
     status: TaskStatus,
