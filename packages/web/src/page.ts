@@ -177,7 +177,7 @@ export function getPage(projectName: string): string {
   <aside id="panel-left" class="flex-none flex flex-col bg-white overflow-hidden" style="width:244px;min-width:160px;max-width:480px">
 
     <!-- Agentes -->
-    <section class="flex flex-col" style="min-height:0">
+    <section class="flex-1 flex flex-col overflow-hidden min-h-0">
       <div class="sec-header flex-none">
         <div class="flex items-center gap-2">
           <span class="sec-title">Agentes</span>
@@ -186,9 +186,9 @@ export function getPage(projectName: string): string {
         <button onclick="toggleSpawnForm()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">+ Lanzar</button>
       </div>
 
-      <div class="p-3 flex flex-col" style="min-height:0">
+      <div class="px-3 pt-3 pb-1 flex flex-col flex-1 overflow-hidden min-h-0">
         <!-- Lista (scroll interno) -->
-        <div id="agents" class="space-y-1.5 overflow-y-auto flex-none" style="max-height:248px"></div>
+        <div id="agents" class="space-y-1.5 overflow-y-auto flex-1 min-h-0"></div>
 
         <!-- Spawn form -->
         <div id="spawn-form" class="hidden mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-2 flex-none">
@@ -213,11 +213,11 @@ export function getPage(projectName: string): string {
 
     <!-- Locks -->
     <section class="flex-none">
-      <div class="sec-header">
+      <div class="sec-header" style="padding-top:4px;padding-bottom:4px">
         <span class="sec-title">Locks activos</span>
       </div>
-      <div class="p-3">
-        <div id="locks" class="space-y-1.5"></div>
+      <div class="px-3 py-1.5">
+        <div id="locks" class="space-y-1"></div>
       </div>
     </section>
 
@@ -508,7 +508,7 @@ function onBodyClick(e) {
 }
 
 // ── render: agente card (shared) ─────────────────────────────────────────────
-function renderAgentCard(a, isOrchestrator) {
+function renderAgentCard(a, isOrchestrator, num, instances) {
   var isActive  = a.status === 'working' || a.status === 'in_progress';
   var isBlocked = a.status === 'blocked';
   var isOffline = a.status === 'offline';
@@ -547,7 +547,7 @@ function renderAgentCard(a, isOrchestrator) {
     '<div class="flex items-center justify-between">' +
       '<div class="flex items-center gap-1.5">' +
         '<span class="' + rColor(a.role) + ' font-mono">' + rIcon(a.role) + '</span>' +
-        '<span class="text-xs font-semibold text-gray-700">' + esc(a.role) + '</span>' +
+        '<span class="text-xs font-semibold text-gray-700">' + esc(a.role) + (num ? ' <span class="font-normal text-gray-400">' + num + '</span>' : '') + (instances ? ' <span class="text-gray-300 font-normal text-xs">×' + instances + '</span>' : '') + '</span>' +
       '</div>' +
       '<div class="flex items-center gap-1">' +
         '<span class="text-xs px-1.5 py-0.5 rounded font-mono ' + agentBadgeCls(a.status) + '">' + agentBadgeTxt(a.status) + '</span>' +
@@ -576,26 +576,48 @@ function isAgentHidden(a) {
 }
 
 function renderAgents(agents) {
-  var orchestrator = agents.find(function(a){ return a.role === 'orchestrator'; });
-  var allWorkers   = agents.filter(function(a){ return a.role !== 'orchestrator'; });
-  var visible      = showHiddenAgents ? allWorkers : allWorkers.filter(function(a){ return !isAgentHidden(a); });
-  var hiddenCount  = allWorkers.length - allWorkers.filter(function(a){ return !isAgentHidden(a); }).length;
-  var active       = visible.filter(function(a){ return a.status === 'working' || a.status === 'in_progress'; }).length;
+  var orchestrator  = agents.find(function(a){ return a.role === 'orchestrator'; });
+  var allWorkers    = agents.filter(function(a){ return a.role !== 'orchestrator'; });
+  var activeWorkers = allWorkers.filter(function(a){ return !isAgentHidden(a); });
 
-  document.getElementById('agent-count').textContent = visible.length
-    ? '(' + active + '/' + visible.length + ')'
+  // Per-role numbering for active workers (only label when >1 of same role)
+  var roleCount = {};
+  activeWorkers.forEach(function(a){ roleCount[a.role] = (roleCount[a.role] || 0) + 1; });
+  var roleIdx = {};
+
+  // Hidden workers: deduplicated by role — keep most-recent heartbeat per role
+  var hiddenWorkers = allWorkers.filter(function(a){ return isAgentHidden(a); });
+  var hiddenCount   = hiddenWorkers.length;
+  var hiddenByRole  = {};
+  var hiddenRoleTotal = {};
+  hiddenWorkers.forEach(function(a) {
+    hiddenRoleTotal[a.role] = (hiddenRoleTotal[a.role] || 0) + 1;
+    if (!hiddenByRole[a.role] || a.last_heartbeat > hiddenByRole[a.role].last_heartbeat) {
+      hiddenByRole[a.role] = a;
+    }
+  });
+  var hiddenDeduped = Object.values(hiddenByRole);
+
+  var active = activeWorkers.filter(function(a){ return a.status === 'working' || a.status === 'in_progress'; }).length;
+
+  document.getElementById('agent-count').textContent = activeWorkers.length
+    ? '(' + active + '/' + activeWorkers.length + ')'
     : '';
 
   var el = document.getElementById('agents');
   var html = '';
 
   if (orchestrator) {
-    html += renderAgentCard(orchestrator, true);
-    if (visible.length) html += '<div class="border-t border-gray-100 my-1.5"></div>';
+    html += renderAgentCard(orchestrator, true, null, null);
+    if (activeWorkers.length || hiddenCount) html += '<div class="border-t border-gray-100 my-1.5"></div>';
   }
 
-  if (visible.length) {
-    html += visible.map(function(a){ return renderAgentCard(a, false); }).join('');
+  if (activeWorkers.length) {
+    html += activeWorkers.map(function(a) {
+      roleIdx[a.role] = (roleIdx[a.role] || 0) + 1;
+      var num = roleCount[a.role] > 1 ? roleIdx[a.role] : null;
+      return renderAgentCard(a, false, num, null);
+    }).join('');
   } else if (!orchestrator) {
     html = '<p class="text-gray-400 text-xs">Sin agentes. Usa + Lanzar.</p>';
   } else {
@@ -608,6 +630,14 @@ function renderAgents(agents) {
           ? '▲ ocultar inactivos'
           : '▼ ' + hiddenCount + ' agente' + (hiddenCount > 1 ? 's' : '') + ' inactivo' + (hiddenCount > 1 ? 's' : ''))
       + '</button>';
+    if (showHiddenAgents) {
+      html += '<div class="mt-1.5 space-y-1.5">' +
+        hiddenDeduped.map(function(a) {
+          var total = hiddenRoleTotal[a.role];
+          return renderAgentCard(a, false, null, total > 1 ? total : null);
+        }).join('') +
+      '</div>';
+    }
   }
 
   el.innerHTML = html;
