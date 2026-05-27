@@ -209,7 +209,7 @@ export class SQLiteAdapter implements StorageAdapter {
         WHERE td.task_id = ?
       `).all(taskId)
 
-      const unmet = deps.filter((d) => d.status !== 'done')
+      const unmet = deps.filter((d) => d.status !== 'done' && d.status !== 'review')
       if (unmet.length > 0) {
         return { success: false, task: mapTask(task), error: `${unmet.length} dependency(ies) not done`, code: 'DEPS_NOT_MET' }
       }
@@ -245,9 +245,43 @@ export class SQLiteAdapter implements StorageAdapter {
     const rows = this.db.prepare<[string], { id: string }>(`
       SELECT t.id FROM task_dependencies td
       JOIN tasks t ON t.id = td.depends_on_task_id
-      WHERE td.task_id = ? AND t.status != 'done'
+      WHERE td.task_id = ? AND t.status NOT IN ('done', 'review')
     `).all(taskId)
     return Promise.resolve(rows.map((r) => r.id))
+  }
+
+  findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]> {
+    // Tasks that list taskId as a dependency and are still in backlog
+    const candidates = this.db.prepare<[string], TaskRow>(`
+      SELECT DISTINCT t.* FROM task_dependencies td
+      JOIN tasks t ON t.id = td.task_id
+      WHERE td.depends_on_task_id = ? AND t.status = 'backlog'
+    `).all(taskId)
+
+    const result: Task[] = []
+    for (const candidate of candidates) {
+      const unmet = (this.db.prepare<[string], { cnt: number }>(`
+        SELECT COUNT(*) as cnt FROM task_dependencies td
+        JOIN tasks t ON t.id = td.depends_on_task_id
+        WHERE td.task_id = ? AND t.status NOT IN ('done', 'review')
+      `).get(candidate.id))?.cnt ?? 1
+      if (unmet === 0) result.push(mapTask(candidate))
+    }
+    return Promise.resolve(result)
+  }
+
+  forceUpdateTaskStatus(taskId: string, status: TaskStatus, meta?: { notes?: string; pr_url?: string }): Promise<Task> {
+    const now = Date.now()
+    const completedAt = status === 'done' ? now : null
+    this.db.prepare(`
+      UPDATE tasks SET status = ?, updated_at = ?, completed_at = COALESCE(?, completed_at),
+      pr_url = COALESCE(?, pr_url) WHERE id = ?
+    `).run(status, now, completedAt, meta?.pr_url ?? null, taskId)
+    if (status === 'done' || status === 'review') {
+      this.db.prepare('DELETE FROM locks WHERE task_id = ?').run(taskId)
+    }
+    this.logEventSync({ event_type: `task.${status}`, payload: { task_id: taskId, notes: meta?.notes, forced: true } })
+    return Promise.resolve(this.getTaskSync(taskId)!)
   }
 
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void> {
@@ -387,6 +421,22 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve()
   }
 
+  // ── Stale task detection (not on StorageAdapter interface — internal use only) ──
+
+  getStaleInProgressTasks(staleMs: number): Array<{ task_id: string; task_title: string; agent_id: string; agent_role: string; project_id: string; heartbeatAge: number }> {
+    const now = Date.now()
+    const rows = this.db.prepare<[number, number], { task_id: string; task_title: string; agent_id: string; agent_role: string; project_id: string; last_heartbeat: number }>(`
+      SELECT t.id as task_id, t.title as task_title, t.project_id,
+             a.id as agent_id, a.role as agent_role, a.last_heartbeat
+      FROM tasks t
+      JOIN agents a ON a.id = t.assigned_agent_id
+      WHERE t.status = 'in_progress'
+        AND t.assigned_agent_id IS NOT NULL
+        AND (? - a.last_heartbeat) > ?
+    `).all(now, staleMs)
+    return rows.map((r) => ({ ...r, heartbeatAge: now - r.last_heartbeat }))
+  }
+
   // ── Agent lifecycle ─────────────────────────────────────────────────────────
 
   stopAgent(agentId: string): Promise<void> {
@@ -424,6 +474,15 @@ export class SQLiteAdapter implements StorageAdapter {
     const events = this.db.prepare('DELETE FROM events WHERE created_at < ?').run(eventCutoff).changes
 
     return Promise.resolve({ agents, locks, events })
+  }
+
+  resetProject(projectId: string): Promise<{ agents: number; tasks: number; notes: number; events: number; locks: number }> {
+    const agents = this.db.prepare("DELETE FROM agents WHERE project_id = ? AND role != 'orchestrator'").run(projectId).changes
+    const tasks  = this.db.prepare('DELETE FROM tasks  WHERE project_id = ?').run(projectId).changes
+    const notes  = this.db.prepare('DELETE FROM notes  WHERE project_id = ?').run(projectId).changes
+    const events = this.db.prepare('DELETE FROM events WHERE project_id = ?').run(projectId).changes
+    const locks  = this.db.prepare('DELETE FROM locks  WHERE project_id = ?').run(projectId).changes
+    return Promise.resolve({ agents, tasks, notes, events, locks })
   }
 
   // ── Events ──────────────────────────────────────────────────────────────────

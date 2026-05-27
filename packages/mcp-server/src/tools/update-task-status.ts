@@ -20,6 +20,24 @@ export const updateTaskStatusTool: ToolDef = {
       notes: input.notes,
       pr_url: input.pr_url,
     })
-    return { task }
+
+    const unblocked: string[] = []
+
+    // When a task reaches done/review, auto-notify agents whose tasks just became claimable
+    if (input.status === 'done' || input.status === 'review') {
+      const downstream = await db.findNowUnblockedDownstream(task.id, task.project_id)
+      for (const dt of downstream) {
+        await db.leaveNote({
+          project_id: task.project_id,
+          from_agent_id: null,
+          to_agent_id: dt.assigned_agent_id ?? null,
+          to_role: dt.assigned_agent_id ? null : dt.role_required,
+          content: `✅ Tu tarea "${dt.title}" está desbloqueada — todas sus dependencias llegaron a done/review. Podés reclamarla ahora con claim_task.`,
+        })
+        unblocked.push(dt.title)
+      }
+    }
+
+    return { task, unblocked_tasks: unblocked }
   },
 }

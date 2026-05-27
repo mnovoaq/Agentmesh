@@ -25,6 +25,7 @@ export interface ActivityItem {
 export interface AppState {
   project: { id: string; name: string; status: string }
   agents: AgentWithTask[]
+  tasks: { id: string; title: string; status: string; role_required: string }[]
   task_counts: Record<string, number>
   active_locks: (Lock & { agent_role?: string })[]
   activity: ActivityItem[]
@@ -35,11 +36,36 @@ const STATUS_ORDER = ['backlog', 'claimed', 'in_progress', 'blocked', 'review', 
 function eventDetail(eventType: string, payload: unknown, tasks: Task[]): string {
   try {
     const p = payload as Record<string, unknown>
+
+    if (eventType.startsWith('hook:')) {
+      const tool = eventType.slice(5)
+      if (tool === 'Edit' || tool === 'Write') {
+        const fp = p['file_path'] as string | undefined
+        return fp ? (fp.split(/[/\\]/).pop() ?? fp) : ''
+      }
+      if (tool === 'MultiEdit') {
+        const edits = p['edits'] as Array<{ file_path: string }> | undefined
+        const fp = edits?.[0]?.file_path
+        return fp ? (fp.split(/[/\\]/).pop() ?? fp) : ''
+      }
+      if (tool === 'Bash') {
+        const cmd = (p['command'] as string | undefined) ?? ''
+        return cmd.length > 48 ? cmd.slice(0, 48) + '…' : cmd
+      }
+      if (tool === 'TodoWrite') {
+        const todos = p['todos'] as Array<unknown> | undefined
+        return todos ? todos.length + ' TODOs' : ''
+      }
+      return ''
+    }
+
     if (p['task_id']) {
       const t = tasks.find((x) => x.id === p['task_id'])
-      return t ? '"' + t.title + '"' : String(p['task_id']).slice(0, 12)
+      const base = t ? '"' + t.title + '"' : String(p['task_id']).slice(0, 12)
+      return p['status'] ? base + ' → ' + String(p['status']) : base
     }
     if (p['paths']) return (p['paths'] as string[]).join(', ')
+    if (p['title']) return '"' + String(p['title']) + '"'
     if (p['lock_id']) return String(p['lock_id']).slice(0, 10)
   } catch { /* ignore */ }
   return ''
@@ -112,6 +138,17 @@ export async function buildState(db: SQLiteAdapter, projectId: string): Promise<
 
   return {
     project: { id: project.id, name: project.name, status: project.status },
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      acceptance_criteria: t.acceptance_criteria,
+      status: t.status,
+      role_required: t.role_required,
+      assigned_agent_id: t.assigned_agent_id ?? null,
+      branch_name: t.branch_name ?? null,
+      pr_url: t.pr_url ?? null,
+    })),
     agents: agents.map((a) => {
       const ct = tasksByAgent.get(a.id)
       return { ...a, current_task: ct ? { id: ct.id, title: ct.title, status: ct.status } : undefined }

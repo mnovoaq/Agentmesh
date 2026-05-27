@@ -121,15 +121,31 @@ export function registerMerge(program: Command): void {
         } catch (err) {
           db.close()
           const msg = (err as { stderr?: Buffer }).stderr?.toString().trim() ?? String(err)
-          console.error(`Merge failed:\n  ${msg}`)
+          // Conflicto en package.json es recuperable — regenerar lockfile resuelve casi siempre
+          if (msg.includes('CONFLICT') && msg.includes('package.json')) {
+            console.error(`Conflicto en package.json. Resolvé manualmente y corré:`)
+            console.error(`  git add package.json && git merge --continue`)
+            console.error(`  npm install`)
+          } else {
+            console.error(`Merge fallido:\n  ${msg}`)
+          }
           process.exit(1)
         }
 
+        // Re-sincronizar lockfile tras merge — evita conflictos en merges sucesivos
+        console.log('Actualizando lockfile post-merge...')
+        try {
+          execSync('npm install', { cwd: repoPath, stdio: 'pipe' })
+          console.log('  lockfile actualizado.')
+        } catch {
+          console.warn('  Advertencia: npm install falló post-merge. Corré manualmente.')
+        }
+
         db.close()
-        console.log(`Merged: ${branchName} → ${opts.into}`)
+        console.log(`Mergeado: ${branchName} → ${opts.into}`)
         console.log()
-        console.log('Next steps:')
-        console.log(`  agentmesh stop ${task.assigned_agent_id ?? '<agent_id>'}  # release locks + worktree`)
+        console.log('Siguiente paso:')
+        console.log(`  agentmesh project reset ${task.project_id}  # limpiar agentes y locks`)
         return
       }
 

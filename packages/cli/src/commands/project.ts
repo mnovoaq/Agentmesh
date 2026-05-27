@@ -44,6 +44,24 @@ export function registerProject(program: Command): void {
     })
 
   proj
+    .command('reset <name_or_id>')
+    .description('Delete all agents, tasks, notes, events and locks for a project (keeps the project itself)')
+    .action(async (nameOrId: string) => {
+      const db = openDb()
+      const projects = await db.listProjects()
+      const project = projects.find((p) => p.id === nameOrId || p.name === nameOrId)
+      if (!project) { db.close(); console.error(`Project not found: ${nameOrId}`); process.exit(1) }
+      const result = await db.resetProject(project.id)
+      db.close()
+      console.log(`Project reset: ${project.name}`)
+      console.log(`  agents removed : ${result.agents}`)
+      console.log(`  tasks removed  : ${result.tasks}`)
+      console.log(`  notes removed  : ${result.notes}`)
+      console.log(`  events removed : ${result.events}`)
+      console.log(`  locks removed  : ${result.locks}`)
+    })
+
+  proj
     .command('show <name_or_id>')
     .description('Show project details')
     .action(async (nameOrId: string) => {

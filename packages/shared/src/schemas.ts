@@ -7,7 +7,7 @@ export const TaskStatusSchema = z.enum([
 ])
 
 export const AgentRoleSchema = z.enum([
-  'orchestrator', 'backend', 'frontend', 'qa', 'reviewer', 'release', 'integration',
+  'orchestrator', 'backend', 'frontend', 'qa', 'reviewer', 'release', 'integration', 'scrum-master',
 ])
 
 export const EffortSizeSchema = z.enum(['XS', 'S', 'M', 'L', 'XL'])
