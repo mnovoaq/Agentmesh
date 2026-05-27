@@ -114,7 +114,7 @@ export function getPage(projectName: string): string {
 
   #feed { scroll-behavior: smooth; }
 
-  /* Panel resize handles */
+  /* Panel resize handles — horizontal */
   .rz-handle {
     flex: none; width: 5px; background: #e2e8f0;
     cursor: col-resize; position: relative; user-select: none;
@@ -128,6 +128,21 @@ export function getPage(projectName: string): string {
   }
   .rz-handle:hover, .rz-handle.rz-active { background: #c7d2fe; }
   .rz-handle:hover::after, .rz-handle.rz-active::after { opacity: 1; }
+
+  /* Panel resize handles — vertical */
+  .rz-v-handle {
+    flex: none; height: 5px; background: #e2e8f0;
+    cursor: row-resize; position: relative; user-select: none;
+    transition: background 0.15s;
+  }
+  .rz-v-handle::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    height: 3px; width: 40px; background: #6366f1;
+    border-radius: 2px; opacity: 0; transition: opacity 0.15s;
+  }
+  .rz-v-handle:hover, .rz-v-handle.rz-active { background: #c7d2fe; }
+  .rz-v-handle:hover::after, .rz-v-handle.rz-active::after { opacity: 1; }
 
   /* Section headers */
   .sec-header {
@@ -211,13 +226,16 @@ export function getPage(projectName: string): string {
       </div>
     </section>
 
+    <!-- vertical resize handle -->
+    <div id="rz-locks" class="rz-v-handle"></div>
+
     <!-- Locks -->
-    <section class="flex-none">
-      <div class="sec-header" style="padding-top:4px;padding-bottom:4px">
+    <section id="section-locks" class="flex-none flex flex-col overflow-hidden" style="height:112px;min-height:48px;max-height:320px">
+      <div class="sec-header flex-none" style="padding-top:4px;padding-bottom:4px">
         <span class="sec-title">Locks activos</span>
       </div>
-      <div class="px-3 py-1.5">
-        <div id="locks" class="space-y-1 overflow-y-auto" style="max-height:96px"></div>
+      <div class="px-3 py-1.5 flex-1 overflow-y-auto">
+        <div id="locks" class="space-y-1"></div>
       </div>
     </section>
 
@@ -982,7 +1000,7 @@ source.onopen = function() {
   document.getElementById('live-label').className = 'text-green-600 font-medium';
 };
 
-// ── panel resize ─────────────────────────────────────────────────────────────
+// ── panel resize (horizontal) ─────────────────────────────────────────────────
 (function() {
   var rz = null;
 
@@ -1017,6 +1035,39 @@ source.onopen = function() {
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     rz = null;
+  });
+})();
+
+// ── panel resize (vertical — locks) ──────────────────────────────────────────
+(function() {
+  var rzV = null;
+  var handle = document.getElementById('rz-locks');
+  if (!handle) return;
+
+  handle.addEventListener('mousedown', function(e) {
+    var section = document.getElementById('section-locks');
+    rzV = { section: section, startY: e.clientY, startH: section.offsetHeight };
+    handle.classList.add('rz-active');
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!rzV) return;
+    var delta = rzV.startY - e.clientY;  // drag up = taller
+    var min = parseInt(rzV.section.style.minHeight) || 48;
+    var max = parseInt(rzV.section.style.maxHeight) || 320;
+    var h = Math.max(min, Math.min(max, rzV.startH + delta));
+    rzV.section.style.height = h + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!rzV) return;
+    handle.classList.remove('rz-active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    rzV = null;
   });
 })();
 <\/script>
