@@ -217,7 +217,7 @@ export function getPage(projectName: string): string {
         <span class="sec-title">Locks activos</span>
       </div>
       <div class="px-3 py-1.5">
-        <div id="locks" class="space-y-1"></div>
+        <div id="locks" class="space-y-1 overflow-y-auto" style="max-height:96px"></div>
       </div>
     </section>
 
