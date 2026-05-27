@@ -1,5 +1,9 @@
 # AgentMesh
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 Sistema de orquestación multi-agente para **Claude Code**. Permite coordinar varios agentes de Claude trabajando en paralelo sobre un mismo proyecto, cada uno en su propio git worktree, comunicándose a través de un servidor MCP compartido.
 
 ---
@@ -322,3 +326,15 @@ No hace falta reinstalar el CLI global — `pnpm link` ya apunta a los archivos 
 
 **Un worker se activa y sale inmediatamente sin hacer nada**  
 → Las tareas pueden tener dependencias no resueltas. Verificar con `agentmesh tasks --project <nombre>` que las dependencias estén en `done`.
+
+---
+
+## Contributing
+
+Contributions are welcome — bug reports, feature requests, new agent roles, or code.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
