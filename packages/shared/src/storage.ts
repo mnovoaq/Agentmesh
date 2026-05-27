@@ -46,9 +46,9 @@ export interface StorageAcquireLockInput {
 
 export interface StorageLeaveNoteInput {
   project_id: string
-  from_agent_id: string
-  to_agent_id?: string
-  to_role?: AgentRole
+  from_agent_id: string | null
+  to_agent_id?: string | null
+  to_role?: AgentRole | null
   task_id?: string
   content: string
 }
@@ -98,6 +98,12 @@ export interface StorageAdapter {
     agentId: string,
     meta?: { notes?: string; pr_url?: string }
   ): Promise<Task>
+  forceUpdateTaskStatus(
+    taskId: string,
+    status: TaskStatus,
+    meta?: { notes?: string; pr_url?: string }
+  ): Promise<Task>
+  findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]>
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void>
   listUnmetDependencies(taskId: string): Promise<string[]>
   reassignTask(taskId: string, toAgentId: string): Promise<Task>

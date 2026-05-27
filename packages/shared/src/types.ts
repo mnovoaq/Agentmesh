@@ -2,7 +2,7 @@
 
 export type ProjectStatus = 'active' | 'paused' | 'archived'
 export type SprintStatus = 'active' | 'done' | 'cancelled'
-export type AgentRole = 'orchestrator' | 'backend' | 'frontend' | 'qa' | 'reviewer' | 'release' | 'integration'
+export type AgentRole = 'orchestrator' | 'backend' | 'frontend' | 'qa' | 'reviewer' | 'release' | 'integration' | 'scrum-master'
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'offline'
 export type TaskStatus = 'backlog' | 'claimed' | 'in_progress' | 'blocked' | 'review' | 'done' | 'cancelled'
 export type EffortSize = 'XS' | 'S' | 'M' | 'L' | 'XL'
