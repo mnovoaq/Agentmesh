@@ -182,6 +182,8 @@ agentmesh web --project "my-project" --port 4000
 agentmesh web --project "my-project"
 ```
 
+![AgentMesh dashboard — real agents working in parallel](assets/dashboard.png)
+
 Shows in real time:
 
 - **Left sidebar** — active agents with their current task and heartbeat
