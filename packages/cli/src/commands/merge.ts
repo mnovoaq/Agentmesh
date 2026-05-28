@@ -121,15 +121,69 @@ export function registerMerge(program: Command): void {
         } catch (err) {
           db.close()
           const msg = (err as { stderr?: Buffer }).stderr?.toString().trim() ?? String(err)
-          console.error(`Merge failed:\n  ${msg}`)
+          // Conflicto en package.json es recuperable — regenerar lockfile resuelve casi siempre
+          if (msg.includes('CONFLICT') && msg.includes('package.json')) {
+            console.error(`Conflicto en package.json. Resolvé manualmente y corré:`)
+            console.error(`  git add package.json && git merge --continue`)
+            console.error(`  npm install`)
+          } else {
+            console.error(`Merge fallido:\n  ${msg}`)
+          }
           process.exit(1)
         }
 
+        // Re-sincronizar lockfile tras merge — evita conflictos en merges sucesivos
+        console.log('Actualizando lockfile post-merge...')
+        try {
+          execSync('npm install', { cwd: repoPath, stdio: 'pipe' })
+          console.log('  lockfile actualizado.')
+        } catch {
+          console.warn('  Advertencia: npm install falló post-merge. Corré manualmente.')
+        }
+
+        // ── Post-merge cleanup ────────────────────────────────────────────────
+        // 1. Tag liviano para recuperación si algo falla
+        try {
+          execSync(`git tag "merged/${branchName}" "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+          console.log(`  Tag creado: merged/${branchName}`)
+        } catch { /* tag ya existe o branch gone — ignorar */ }
+
+        // 2. Eliminar worktree del agente asignado
+        let worktreePath: string | null = null
+        if (task.assigned_agent_id) {
+          const agent = await db.getAgent(task.assigned_agent_id)
+          worktreePath = agent?.worktree_path ?? null
+          if (worktreePath) {
+            try {
+              execSync(`git worktree remove --force "${worktreePath}"`, { cwd: repoPath, stdio: 'pipe' })
+              console.log(`  Worktree eliminado: ${worktreePath}`)
+            } catch {
+              console.warn(`  Advertencia: no se pudo eliminar el worktree ${worktreePath}. Eliminalo manualmente.`)
+            }
+          }
+          // Marcar agente como offline
+          try {
+            await db.updateAgentStatus(task.assigned_agent_id, 'offline')
+          } catch { /* best-effort */ }
+        }
+
+        // 3. Eliminar branch mergeado
+        try {
+          execSync(`git branch -d "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+          console.log(`  Branch eliminado: ${branchName}`)
+        } catch {
+          try {
+            // -D fuerza si git no detecta el merge correctamente
+            execSync(`git branch -D "${branchName}"`, { cwd: repoPath, stdio: 'pipe' })
+            console.log(`  Branch eliminado (forzado): ${branchName}`)
+          } catch {
+            console.warn(`  Advertencia: no se pudo eliminar el branch ${branchName}.`)
+          }
+        }
+
         db.close()
-        console.log(`Merged: ${branchName} → ${opts.into}`)
         console.log()
-        console.log('Next steps:')
-        console.log(`  agentmesh stop ${task.assigned_agent_id ?? '<agent_id>'}  # release locks + worktree`)
+        console.log(`Mergeado y limpiado: ${branchName} → ${opts.into}`)
         return
       }
 

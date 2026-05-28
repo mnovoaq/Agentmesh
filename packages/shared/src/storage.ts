@@ -92,6 +92,7 @@ export interface StorageAdapter {
   getTask(id: string): Promise<Task | null>
   listTasks(filter: TaskFilter): Promise<Task[]>
   claimTask(taskId: string, agentId: string): Promise<ClaimResult>
+  setTaskBranch(taskId: string, branchName: string): Promise<void>
   updateTaskStatus(
     taskId: string,
     status: TaskStatus,
@@ -106,6 +107,8 @@ export interface StorageAdapter {
   findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]>
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void>
   listUnmetDependencies(taskId: string): Promise<string[]>
+  findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]>
+  forceUpdateTaskStatus(taskId: string, status: TaskStatus, meta?: { notes?: string; pr_url?: string }): Promise<Task>
   reassignTask(taskId: string, toAgentId: string): Promise<Task>
   cancelTask(taskId: string, reason: string): Promise<Task>
 
@@ -128,6 +131,7 @@ export interface StorageAdapter {
 
   // Maintenance
   pruneStaleData(opts?: { agentOfflineMs?: number; eventsOlderMs?: number }): Promise<{ agents: number; locks: number; events: number }>
+  resetProject(projectId: string): Promise<{ agents: number; tasks: number; notes: number; events: number; locks: number }>
 
   // Events
   logEvent(input: LogEventInput): Promise<void>

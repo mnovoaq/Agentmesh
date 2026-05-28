@@ -30,11 +30,19 @@ export const getMyTasksTool: ToolDef = {
     const blocked = []
 
     for (const task of candidates) {
-      const unmet = await db.listUnmetDependencies(task.id)
-      if (unmet.length === 0) {
+      const unmetIds = await db.listUnmetDependencies(task.id)
+      if (unmetIds.length === 0) {
         claimable.push(task)
       } else if (input.include_unclaimable) {
-        blocked.push({ ...task, _blocked_by: unmet })
+        const blocking = await Promise.all(
+          unmetIds.map(async (id) => {
+            const t = await db.getTask(id)
+            return t
+              ? { id: t.id, title: t.title, status: t.status, role_required: t.role_required }
+              : { id, title: '(unknown)', status: 'unknown', role_required: 'unknown' }
+          })
+        )
+        blocked.push({ ...task, _blocked_by: blocking })
       }
     }
 
