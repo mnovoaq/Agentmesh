@@ -1,5 +1,7 @@
 # AgentMesh
 
+> Open source multi-agent orchestration for Claude Code.
+
 Sistema de orquestación multi-agente para **Claude Code**. Permite coordinar varios agentes de Claude trabajando en paralelo sobre un mismo proyecto, cada uno en su propio git worktree, comunicándose a través de un servidor MCP compartido.
 
 ---
