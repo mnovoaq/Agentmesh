@@ -4,56 +4,58 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-Sistema de orquestación multi-agente para **Claude Code**. Permite coordinar varios agentes de Claude trabajando en paralelo sobre un mismo proyecto, cada uno en su propio git worktree, comunicándose a través de un servidor MCP compartido.
+Multi-agent orchestration for **Claude Code**. Coordinate multiple Claude agents working in parallel on the same project — each in its own git worktree, communicating through a shared MCP server.
 
 ---
 
-## Cómo funciona
+## How it works
 
 ```
-Usuario
-  └─► Orquestador (Claude Code corriendo en el directorio del proyecto)
-         ├─► Agente backend   (worktree propio, rama propia)
-         ├─► Agente frontend  (worktree propio, rama propia)
-         ├─► Agente QA        (worktree propio, rama propia)
-         └─► Scrum Master     (monitor del pipeline, ciclo autónomo)
+User
+  └─► Orchestrator (Claude Code in the project directory)
+         ├─► Backend agent   (own worktree, own branch)
+         ├─► Frontend agent  (own worktree, own branch)
+         ├─► QA agent        (own worktree, own branch)
+         └─► Scrum Master    (pipeline monitor, autonomous loop)
 ```
 
-- Cada agente corre en una terminal separada con `claude --dangerously-skip-permissions`
-- Se coordinan a través de tareas, notas y locks en una base de datos SQLite compartida
-- El orquestador planifica y coordina; los workers ejecutan; el Scrum Master vigila el pipeline
-- Dashboard web en tiempo real para ver el estado del equipo
+- Each agent runs in a separate terminal with `claude --dangerously-skip-permissions`
+- Agents coordinate through tasks, notes, and locks in a shared SQLite database
+- The orchestrator plans and delegates; workers execute; the Scrum Master monitors the pipeline
+- Real-time web dashboard to track the whole team
 
 ---
 
-## Requisitos
+## Requirements
 
 - **Node.js** >= 20
 - **pnpm** >= 9 — `npm install -g pnpm`
-- **Claude Code** instalado globalmente — `npm install -g @anthropic-ai/claude-code`
-- **Git** >= 2.20 (soporte de worktrees)
-- Windows 10/11 (el loop autónomo de agentes usa PowerShell)
+- **Claude Code** installed globally — `npm install -g @anthropic-ai/claude-code`
+- **Git** >= 2.20 (worktree support)
+- **OS**: Linux, macOS, or Windows 10/11
+
+> On Linux, at least one terminal emulator must be installed for auto-launch: `gnome-terminal`, `konsole`, `xfce4-terminal`, or `xterm`. On macOS, Terminal.app is used. On Windows, Windows Terminal (`wt`) or PowerShell.
 
 ---
 
-## Instalación
+## Installation
 
 ```bash
-# 1. Clonar el repo
-git clone https://github.com/mnovoa81/Agentmesh.git
+# 1. Clone the repo
+git clone https://github.com/mnovoaq/Agentmesh.git
 cd Agentmesh
 
-# 2. Instalar dependencias
+# 2. Install dependencies
 pnpm install
 
-# 3. Compilar todos los paquetes
+# 3. Build all packages
 pnpm build
 
-# 4. Instalar el CLI globalmente
+# 4. Install the CLI globally
 pnpm --filter @agentmesh/cli link --global
 ```
 
-Verificar que quedó instalado:
+Verify installation:
 
 ```bash
 agentmesh --version
@@ -62,237 +64,236 @@ agentmesh --version
 
 ---
 
-## Primer uso
+## Quick start
 
-### 1. Ir al directorio del proyecto
+### 1. Go to your project directory
 
-AgentMesh trabaja sobre un repositorio git existente. Si no tenés uno:
+AgentMesh works on an existing git repository. If you don't have one:
 
 ```bash
-mkdir mi-proyecto && cd mi-proyecto
+mkdir my-project && cd my-project
 git init
 git commit --allow-empty -m "init"
 ```
 
-### 2. Iniciar AgentMesh en el proyecto
+### 2. Start AgentMesh
 
-Ejecutar **desde dentro del directorio del proyecto**:
+Run **from inside your project directory**:
 
 ```bash
-cd C:/Projects/mi-proyecto
+cd /path/to/my-project
 agentmesh start
 ```
 
-Este comando hace todo en uno:
-- Inicializa la config global de AgentMesh (`~/.agentmesh/`) si no existe
-- Registra el proyecto en la base de datos
-- Crea el agente orquestador
-- Escribe `CLAUDE.md` y `.mcp.json` en el directorio
-- Abre el dashboard web en `http://localhost:4000`
+This does everything in one step:
+- Initializes the global AgentMesh config (`~/.agentmesh/`) if it doesn't exist
+- Registers the project in the database
+- Creates the orchestrator agent
+- Writes `CLAUDE.md` and `.mcp.json` in the directory
+- Opens the web dashboard at `http://localhost:4000`
 
-> Tiene una opción de puerto: `agentmesh start --port 3000`
+> Custom port: `agentmesh start --port 3000`
 
-### 3. Iniciar el orquestador
+### 3. Start the orchestrator
 
-En otra terminal, en el mismo directorio del proyecto:
+In another terminal, in the same project directory:
 
 ```bash
-cd C:/Projects/mi-proyecto
+cd /path/to/my-project
 claude
 ```
 
-Claude Code lee automáticamente el `CLAUDE.md` generado por `start` y se convierte en el orquestador. Desde ahí se coordina todo.
+Claude Code reads the generated `CLAUDE.md` automatically and acts as the orchestrator. Everything is coordinated from there.
 
-### 4. Dashboard web (opcional, sin bloquear)
+### 4. Web dashboard (optional, non-blocking)
 
-Si querés abrir el dashboard en una sesión separada sin que `start` bloquee la terminal:
+To open the dashboard in a separate session without blocking the terminal:
 
 ```bash
-agentmesh web --project "mi-proyecto"
-# con puerto específico:
-agentmesh web --project "mi-proyecto" --port 4000
+agentmesh web --project "my-project"
+# with a specific port:
+agentmesh web --project "my-project" --port 4000
 ```
 
 ---
 
-## Comandos CLI
+## CLI Reference
 
-### Proyecto
+### Project
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `agentmesh start [--port N]` | Inicia AgentMesh en el directorio actual (registra proyecto + orquestador + abre web) |
-| `agentmesh project list` | Lista todos los proyectos registrados |
-| `agentmesh project create <nombre> --repo <ruta>` | Registra un proyecto manualmente |
-| `agentmesh project show <nombre_o_id>` | Muestra detalles del proyecto (agentes, conteo de tareas) |
-| `agentmesh project reset <nombre_o_id>` | Limpia todos los agentes, tareas, notas y eventos del proyecto (no toca el código) |
+| `agentmesh start [--port N]` | Start AgentMesh in the current directory (registers project + orchestrator + opens web) |
+| `agentmesh project list` | List all registered projects |
+| `agentmesh project create <name> --repo <path>` | Register a project manually |
+| `agentmesh project show <name_or_id>` | Show project details (agents, task counts) |
+| `agentmesh project reset <name_or_id>` | Clear all agents, tasks, notes, and events for a project (code is untouched) |
 
-### Agentes
+### Agents
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `agentmesh spawn <rol> --project <nombre>` | Registra un agente worker en un nuevo worktree |
-| `agentmesh spawn <rol> --project <nombre> --from <rama>` | Especifica la rama base del worktree |
-| `agentmesh dispatcher --project <nombre>` | Daemon liviano que activa workers solo cuando hay tareas disponibles (cero polling idle) |
-| `agentmesh dispatcher --project <nombre> --interval <segundos>` | Cambia el intervalo de polling (default: 30s) |
-| `agentmesh stop <agent_id>` | Marca el agente como offline y libera sus locks |
-| `agentmesh stop <agent_id> --remove-worktree` | Ídem + elimina el worktree del disco |
-| `agentmesh status --project <nombre>` | Dashboard en terminal: agentes, tareas, locks |
-| `agentmesh status --project <nombre> --watch` | Refresca cada 2 segundos |
+| `agentmesh spawn <role> --project <name>` | Register a worker agent in a new worktree and auto-launch it in a terminal |
+| `agentmesh spawn <role> --project <name> --from <branch>` | Specify the base branch for the worktree |
+| `agentmesh dispatcher --project <name>` | Lightweight daemon that activates workers only when tasks are available (zero idle polling) |
+| `agentmesh dispatcher --project <name> --interval <seconds>` | Change poll interval (default: 30s) |
+| `agentmesh stop <agent_id>` | Mark agent as offline and release its locks |
+| `agentmesh stop <agent_id> --remove-worktree` | Same + delete the worktree from disk |
+| `agentmesh status --project <name>` | Terminal dashboard: agents, tasks, locks |
+| `agentmesh status --project <name> --watch` | Auto-refresh every 2 seconds |
 
-### Tareas y notas
+### Tasks and notes
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `agentmesh tasks --project <nombre>` | Lista tareas |
-| `agentmesh tasks --project <nombre> --status in_progress` | Filtra por estado |
-| `agentmesh tasks --project <nombre> --role backend` | Filtra por rol |
-| `agentmesh notes --project <nombre>` | Lista notas entre agentes |
-| `agentmesh notes --project <nombre> --unread` | Solo notas no leídas |
+| `agentmesh tasks --project <name>` | List tasks |
+| `agentmesh tasks --project <name> --status in_progress` | Filter by status |
+| `agentmesh tasks --project <name> --role backend` | Filter by role |
+| `agentmesh notes --project <name>` | List notes between agents |
+| `agentmesh notes --project <name> --unread` | Unread notes only |
 
-### Merge y mantenimiento
+### Merge and maintenance
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `agentmesh merge <task_id>` | Verifica precondiciones para mergear (status + CI) |
-| `agentmesh merge <task_id> --auto` | Ejecuta el merge directamente sin agente release |
-| `agentmesh merge <task_id> --auto --into main` | Especifica rama destino (default: main) |
-| `agentmesh prune` | Elimina agentes offline >24h, locks expirados y eventos >30d |
-| `agentmesh prune --agent-ttl 48` | Cambia el TTL de agentes offline a 48 horas |
+| `agentmesh merge <task_id>` | Verify preconditions for merge (status + CI) |
+| `agentmesh merge <task_id> --auto` | Execute the merge directly without a release agent |
+| `agentmesh merge <task_id> --auto --into main` | Specify target branch (default: main) |
+| `agentmesh prune` | Remove agents offline >24h, expired locks, and events >30d |
+| `agentmesh prune --agent-ttl 48` | Change offline agent TTL to 48 hours |
 
-### Roles disponibles para spawn
+### Available roles
 
-| Rol | Función |
+| Role | Function |
 |---|---|
-| `backend` | APIs, lógica de servidor, base de datos |
-| `frontend` | UI, componentes, estilos |
-| `qa` | Tests unitarios y de integración |
-| `integration` | Integración entre servicios, tests end-to-end |
-| `reviewer` | Revisión de código antes del merge |
-| `release` | Versionado, changelogs, deploy |
-| `scrum-master` | Monitor autónomo del pipeline — detecta agentes bloqueados o inactivos |
+| `backend` | APIs, server logic, database |
+| `frontend` | UI, components, styles |
+| `qa` | Unit and integration tests |
+| `integration` | Cross-service integration, end-to-end tests |
+| `reviewer` | Code review before merge |
+| `release` | Versioning, changelogs, deploy |
+| `scrum-master` | Autonomous pipeline monitor — detects blocked or idle agents |
 
 ---
 
-## Dashboard web
+## Web dashboard
 
 ```bash
-agentmesh web --project "mi-proyecto"
+agentmesh web --project "my-project"
 ```
 
-Muestra en tiempo real:
+Shows in real time:
 
-- **Sidebar izquierdo** — agentes activos con su tarea actual y heartbeat
-- **Centro** — tablero Kanban con todas las tareas por estado
-- **Sidebar derecho** — feed de actividad con filtros: todo / notas / MCP / acciones
+- **Left sidebar** — active agents with their current task and heartbeat
+- **Center** — Kanban board with all tasks by status
+- **Right sidebar** — activity feed with filters: all / notes / MCP / actions
 
-Los paneles son redimensionables arrastrando los separadores.
+Panels are resizable by dragging the dividers.
 
 ---
 
-## Estructura del monorepo
+## Repo structure
 
 ```
 packages/
-  cli/          CLI "agentmesh" — todos los comandos
-  mcp-server/   Servidor MCP — herramientas que usan los agentes (tareas, locks, notas)
-  shared/       Tipos TypeScript y esquemas Zod compartidos
-  web/          Dashboard web (Express + SSE + Tailwind)
+  cli/          "agentmesh" CLI — all commands
+  mcp-server/   MCP server — tools used by agents (tasks, locks, notes)
+  shared/       Shared TypeScript types and Zod schemas
+  web/          Web dashboard (Express + SSE + Tailwind)
 
 agents/
-  _common.md        Instrucciones base para todos los workers
-  orchestrator.md   Protocolo del orquestador
-  scrum-master.md   Protocolo del Scrum Master
-  backend.md        Instrucciones del rol backend
-  frontend.md       Instrucciones del rol frontend
-  qa.md             Instrucciones del rol QA
+  _common.md        Base instructions for all workers
+  orchestrator.md   Orchestrator protocol
+  scrum-master.md   Scrum Master protocol
+  backend.md        Backend role instructions
+  frontend.md       Frontend role instructions
+  qa.md             QA role instructions
   (etc.)
 ```
 
 ---
 
-## Flujo típico de trabajo
+## Typical workflow
 
 ```bash
-# 1. Ir al proyecto y lanzar AgentMesh
-cd C:/Projects/mi-app
-agentmesh start               # registra proyecto + escribe CLAUDE.md + abre dashboard
+# 1. Go to your project and launch AgentMesh
+cd /path/to/my-app
+agentmesh start               # registers project + writes CLAUDE.md + opens dashboard
 
-# 2. En otra terminal: iniciar el orquestador
-cd C:/Projects/mi-app
-claude                        # lee CLAUDE.md y actúa como orquestador
+# 2. In another terminal: start the orchestrator
+cd /path/to/my-app
+claude                        # reads CLAUDE.md and acts as orchestrator
 
-# El orquestador analiza el proyecto y propone un roadmap al usuario.
-# Al obtener aprobación, crea las tareas en AgentMesh.
+# The orchestrator analyzes the project and proposes a roadmap.
+# Once approved, it creates tasks in AgentMesh.
 
-# 3. El orquestador inicia el dispatcher (una vez por sesión, antes del primer spawn)
-#    El orquestador ejecuta esto en una nueva terminal:
-agentmesh dispatcher --project mi-app
+# 3. The orchestrator starts the dispatcher (once per session, before the first spawn)
+agentmesh dispatcher --project my-app
 
-# 4. El orquestador registra los worktrees de cada rol
-#    (el dispatcher activa los workers automáticamente cuando hay tareas)
-agentmesh spawn backend --project mi-app
-agentmesh spawn frontend --project mi-app
-agentmesh spawn qa --project mi-app
+# 4. Register worktrees for each role
+# (the dispatcher activates workers automatically when tasks are available)
+agentmesh spawn backend --project my-app
+agentmesh spawn frontend --project my-app
+agentmesh spawn qa --project my-app
 
-# 5. Monitorear el progreso
-# → En el dashboard web (http://localhost:4000)
-# → O en terminal:
-agentmesh status --project mi-app --watch
+# 5. Monitor progress
+# → In the web dashboard (http://localhost:4000)
+# → Or in the terminal:
+agentmesh status --project my-app --watch
 
-# 6. Cuando una etapa termina, mergear las tareas completadas
+# 6. When a task is done, merge it
 agentmesh merge <task_id> --auto --into main
 
-# 7. Limpiar los registros de AgentMesh para comenzar una nueva sesión
-agentmesh project reset mi-app
+# 7. Clean AgentMesh records to start a new session
+agentmesh project reset my-app
 ```
 
 ---
 
-## Dispatcher — activación event-driven de workers
+## Dispatcher — event-driven worker activation
 
-El dispatcher es un proceso liviano (sin LLM) que reemplaza el polling continuo de cada worker:
+The dispatcher is a lightweight process (no LLM) that replaces continuous polling by each worker:
 
-**Sin dispatcher (antes):** cada worker corre `claude -p` cada 90 segundos, pagando el contexto completo aunque no haya trabajo — idle token burn.
+**Without dispatcher (before):** each worker runs `claude -p` every 90 seconds, paying the full context cost even when idle — wasted tokens.
 
-**Con dispatcher:** los workers son procesos de una sola pasada. Arrancan, completan todas las tareas disponibles de su rol, y salen. El dispatcher los re-activa cuando aparece nuevo trabajo.
+**With dispatcher:** workers are single-pass processes. They start, complete all available tasks for their role, and exit. The dispatcher re-activates them when new work appears.
 
 ```
-[Dispatcher — SQL puro, sin LLM]
-   ↓ consulta DB cada 30s
-   ↓ detecta: rol "backend" tiene 2 tareas disponibles, sin worker activo
-   → abre terminal con claude en el worktree del backend
+[Dispatcher — pure SQL, no LLM]
+   ↓ polls DB every 30s
+   ↓ detects: role "backend" has 2 available tasks, no active worker
+   → opens terminal with claude in the backend worktree
 
-[Worker backend]
+[Backend worker]
    → get_notes + get_my_tasks
-   → reclama tarea 1, trabaja, done
-   → reclama tarea 2, trabaja, done
-   → no hay más tareas → sale
+   → claims task 1, works, done
+   → claims task 2, works, done
+   → no more tasks → exits
 
-[Dispatcher] → próxima consulta → frontend desbloqueado → activa frontend
+[Dispatcher] → next poll → frontend unblocked → activates frontend
 ```
 
-**Ahorro estimado:** 50-70% menos tokens en sprints típicos (workers idle 60-70% del tiempo).
+**Estimated savings:** 50–70% fewer tokens in typical sprints (workers are idle 60–70% of the time).
 
-El dispatcher lo inicia el orquestador en FASE 4, antes del primer `spawn`. Solo necesita correr una vez por sesión.
+The dispatcher is started by the orchestrator before the first `spawn`. It only needs to run once per session.
 
 ---
 
-## Limpiar un proyecto (reset AgentMesh)
+## Resetting a project
 
-Para borrar solo los registros de AgentMesh y empezar de nuevo — **sin tocar el código del proyecto**:
+To delete only the AgentMesh records and start fresh — **without touching the project code**:
 
 ```bash
-agentmesh project reset mi-app
+agentmesh project reset my-app
 ```
 
-Esto elimina: agentes, tareas, notas, eventos y locks. El directorio del proyecto y su historial git quedan intactos.
+This removes: agents, tasks, notes, events, and locks. The project directory and its git history remain intact.
 
-> Los worktrees en `.worktrees/` quedan en disco — eliminarlos manualmente o con `agentmesh stop <id> --remove-worktree` antes del reset.
+> Worktrees in `.worktrees/` stay on disk — remove them manually or with `agentmesh stop <id> --remove-worktree` before resetting.
 
 ---
 
-## Cómo actualizar
+## Updating
 
 ```bash
 git pull
@@ -300,32 +301,35 @@ pnpm install
 pnpm build
 ```
 
-No hace falta reinstalar el CLI global — `pnpm link` ya apunta a los archivos compilados localmente.
+No need to reinstall the CLI globally — `pnpm link` already points to the locally compiled files.
 
 ---
 
 ## Troubleshooting
 
-**`agentmesh: command not found`**  
-→ Verificar que `pnpm --filter @agentmesh/cli link --global` se ejecutó y que el directorio de binarios globales de pnpm está en el PATH.
+**`agentmesh: command not found`**
+→ Make sure `pnpm --filter @agentmesh/cli link --global` was run and that the pnpm global bin directory is in your PATH.
 
-**El agente no aparece en el dashboard**  
-→ El agente registra su heartbeat con la primera llamada MCP. Puede tardar ~30 segundos en aparecer activo.
+**Agent doesn't appear in the dashboard**
+→ The agent registers its heartbeat on the first MCP call. It may take ~30 seconds to show as active.
 
-**Error "not a git repository"**  
-→ El directorio del proyecto debe tener git. Ejecutar `git init && git commit --allow-empty -m "init"`.
+**Error "not a git repository"**
+→ The project directory must have git. Run `git init && git commit --allow-empty -m "init"`.
 
-**Worktrees de sesiones anteriores siguen en `.worktrees/`**  
-→ Eliminarlos manualmente o usar `agentmesh stop <agent_id> --remove-worktree` antes de hacer el reset.
+**Terminal doesn't open automatically on Linux**
+→ Install a supported terminal emulator: `gnome-terminal`, `konsole`, `xfce4-terminal`, or `xterm`. Then run `agentmesh spawn` again.
 
-**`agentmesh merge` dice que la rama no existe**  
-→ La tarea debe tener `branch_name` asignado, o el agente que la trabajó debe tenerlo en su registro.
+**Worktrees from previous sessions remain in `.worktrees/`**
+→ Remove them manually or use `agentmesh stop <agent_id> --remove-worktree` before resetting.
 
-**El dispatcher no activa workers aunque hay tareas en backlog**  
-→ Verificar que los worktrees existen (`agentmesh status --project <nombre>`). El dispatcher solo activa agentes que ya están registrados con un `worktree_path` válido. Si no hay ninguno, correr `agentmesh spawn <rol>` primero.
+**`agentmesh merge` says the branch doesn't exist**
+→ The task must have a `branch_name` assigned, or the agent that worked on it must have it in its record.
 
-**Un worker se activa y sale inmediatamente sin hacer nada**  
-→ Las tareas pueden tener dependencias no resueltas. Verificar con `agentmesh tasks --project <nombre>` que las dependencias estén en `done`.
+**The dispatcher doesn't activate workers even though there are backlog tasks**
+→ Verify that worktrees exist (`agentmesh status --project <name>`). The dispatcher only activates agents already registered with a valid `worktree_path`. If none exist, run `agentmesh spawn <role>` first.
+
+**A worker activates and exits immediately without doing anything**
+→ Tasks may have unresolved dependencies. Check with `agentmesh tasks --project <name>` that dependencies are in `done` status.
 
 ---
 

@@ -1,9 +1,13 @@
 import type { Command } from 'commander'
-import { spawn } from 'node:child_process'
+import { execSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { openDb, readConfig } from '../db.js'
+
+function commandExists(cmd: string): boolean {
+  try { execSync(`which ${cmd}`, { stdio: 'pipe' }); return true } catch { return false }
+}
 
 // How long to wait before re-activating the same role (avoids double-launch)
 const GRACE_MS = 30_000
@@ -20,27 +24,51 @@ const ACTIVATION_PROMPT =
   'Cuando no queden más tareas disponibles, terminá el proceso limpiamente.'
 
 function launchWorker(role: string, worktreePath: string): void {
-  const loopScript = join(worktreePath, '_agent_loop.ps1')
-  if (!existsSync(loopScript)) return
+  const isWin = process.platform === 'win32'
+  const isMac = process.platform === 'darwin'
 
-  // Try Windows Terminal first, fall back to new PowerShell window
-  let launched = false
-  try {
-    spawn('wt', [
-      'new-tab', '--title', role,
-      '-d', worktreePath,
-      'powershell', '-File', loopScript,
-    ], { detached: true, stdio: 'ignore' }).unref()
-    launched = true
-  } catch { /* wt not available */ }
-
-  if (!launched) {
+  if (isWin) {
+    const loopScript = join(worktreePath, '_agent_loop.ps1')
+    if (!existsSync(loopScript)) return
     try {
-      spawn('powershell', [
-        '-Command',
+      spawn('wt', ['new-tab', '--title', role, '-d', worktreePath,
+        'powershell', '-File', loopScript,
+      ], { detached: true, stdio: 'ignore' }).unref()
+      return
+    } catch { /* wt not available */ }
+    try {
+      spawn('powershell', ['-Command',
         `Start-Process powershell -ArgumentList '-File "${loopScript}"'`,
       ], { detached: true, stdio: 'ignore' }).unref()
     } catch { /* ignore */ }
+    return
+  }
+
+  const loopScript = join(worktreePath, '_agent_loop.sh')
+  if (!existsSync(loopScript)) return
+
+  if (isMac) {
+    try {
+      spawn('osascript', ['-e',
+        `tell application "Terminal" to do script "bash '${loopScript}'"`,
+      ], { detached: true, stdio: 'ignore' }).unref()
+    } catch { /* ignore */ }
+    return
+  }
+
+  // Linux
+  const terminals: [string, string[]][] = [
+    ['gnome-terminal', ['--title', role, '--', 'bash', loopScript]],
+    ['konsole', ['--new-tab', '-e', 'bash', loopScript]],
+    ['xfce4-terminal', ['--title', role, '-e', `bash '${loopScript}'`]],
+    ['xterm', ['-title', role, '-e', `bash '${loopScript}'`]],
+    ['x-terminal-emulator', ['-e', `bash '${loopScript}'`]],
+  ]
+  for (const [cmd, args] of terminals) {
+    if (commandExists(cmd)) {
+      spawn(cmd, args, { detached: true, stdio: 'ignore', cwd: worktreePath }).unref()
+      return
+    }
   }
 }
 
