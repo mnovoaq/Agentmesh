@@ -107,8 +107,6 @@ export interface StorageAdapter {
   findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]>
   updateTaskDependencies(taskId: string, dependsOn: string[]): Promise<void>
   listUnmetDependencies(taskId: string): Promise<string[]>
-  findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]>
-  forceUpdateTaskStatus(taskId: string, status: TaskStatus, meta?: { notes?: string; pr_url?: string }): Promise<Task>
   reassignTask(taskId: string, toAgentId: string): Promise<Task>
   cancelTask(taskId: string, reason: string): Promise<Task>
 

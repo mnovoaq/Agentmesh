@@ -247,34 +247,6 @@ export class SQLiteAdapter implements StorageAdapter {
     return Promise.resolve(this.getTaskSync(taskId)!)
   }
 
-  forceUpdateTaskStatus(taskId: string, status: TaskStatus, meta?: { notes?: string; pr_url?: string }): Promise<Task> {
-    const now = Date.now()
-    const completedAt = status === 'done' ? now : null
-    this.db.prepare(`
-      UPDATE tasks SET status = ?, updated_at = ?, completed_at = COALESCE(?, completed_at),
-      pr_url = COALESCE(?, pr_url) WHERE id = ?
-    `).run(status, now, completedAt, meta?.pr_url ?? null, taskId)
-    if (status === 'done') {
-      this.db.prepare('DELETE FROM locks WHERE task_id = ?').run(taskId)
-    }
-    this.logEventSync({ event_type: `task.force_${status}`, payload: { task_id: taskId, notes: meta?.notes } })
-    return Promise.resolve(this.getTaskSync(taskId)!)
-  }
-
-  findNowUnblockedDownstream(taskId: string, projectId: string): Promise<Task[]> {
-    const rows = this.db.prepare<[string, string], TaskRow>(`
-      SELECT t.* FROM task_dependencies td
-      JOIN tasks t ON t.id = td.task_id
-      WHERE td.depends_on_task_id = ? AND t.project_id = ? AND t.status = 'backlog'
-      AND NOT EXISTS (
-        SELECT 1 FROM task_dependencies td2
-        JOIN tasks dep ON dep.id = td2.depends_on_task_id
-        WHERE td2.task_id = t.id AND dep.status != 'done'
-      )
-    `).all(taskId, projectId)
-    return Promise.resolve(rows.map(mapTask))
-  }
-
   listUnmetDependencies(taskId: string): Promise<string[]> {
     const rows = this.db.prepare<[string], { id: string }>(`
       SELECT t.id FROM task_dependencies td
